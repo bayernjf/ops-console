@@ -78,7 +78,7 @@ export class CommerceUpstream {
   }
   requestRefund(body: {
     orderId: string;
-    lines: Array<{ orderItemId?: string; qty?: number; amount?: number }>;
+    lines: Array<{ orderItemId?: string | undefined; qty?: number | undefined; amount?: number | undefined }>;
     reason: string;
   }): Promise<{ refund: CommerceRow }> {
     return this.post('/api/v1/refunds', body);
