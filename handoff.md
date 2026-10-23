@@ -29,16 +29,16 @@
 - [x] T-M8-01 单进程 SSR 工作台：服务端聚合 zeus/commerce + 页面框架；关停控制台不影响底层 API（2026-10-24）
 - [x] T-M8-02 身份与最小 RBAC：env 角色密码 + 签名会话；401/403；浏览器零密钥（2026-10-24；operator 改阈值 403、operator 批 D3 403、D1/D2 两角色可批，单测+真实联调双验证）
 - [x] T-M8-03 审批工作台：D1/D2/D3 列表（轮询 20s 钳制 15–30s/手动/动作后刷新）+ 快照/金额/规则/证据 replay + 批准/驳回；与 zeus /approval 一致（2026-10-24）
-- [x] T-M8-04 只读经营看板：复用 commerce dashboard 口径（订单/退款/内容/净额，不含成本），逐字段透传不重算（2026-10-24）
+- [x] T-M8-04 经营视图 + 受控写：只读看板复用 commerce dashboard 口径（订单/退款/内容/净额，不含成本，逐字段透传不重算）；商品/订单/退款/内容/库存只读页 + 上架提交（D3 owner-only）、退款审批（D2 两角色）、库存手工调整受控动作（2026-10-24，verify-batch2 PASS=21）
 - [x] T-M8-05 通知：本地 webhook 卡片+深链接；挂起→≤60s 投递→decisionId 幂等→超时升级→通道失败可观测；深链接直达（2026-10-24 落地，实现见 src/server/notify/，验证见下方）
 
-## 第二批（受控写）
-- [ ] 上架提交 + 批准/驳回、退款申请/审批、库存手工调整，以及商品/订单/退款/内容/库存只读页
+## 第二批（受控写）— 2026-10-24 完成
+- [x] 上架提交 + 批准/驳回（D3 owner-only）、退款申请/审批（D2 两角色均可）、库存手工调整，以及商品/订单/退款/内容/库存只读页；真实闭环见下文 verify-batch2（PASS=21）。
 
 ## 内核缺口（需回到 zeus/commerce 做，本仓不改内核）
 - **zeus 默认策略 v1 未给任何规则配置 slaHours**：真实 D2/D3 决策的记录上根本没有 `timeoutAt` 字段（list 与 detail 均确认）。控制台引擎对缺失的 timeoutAt 安全跳过 timeout/escalation，但这意味着对真实 zeus 这两类事件永远不会触发。期望：策略规则支持 slaHours，或在决策上显式给 SLA。
 - **zeus 的 SLA 超时是"读到即自动驳回"**（service.applyTimeout：timeoutAt 一过，下次 list/get 时立即把 status 置为 rejected、result.outcome=timed-out）。即使补上 slaHours，控制台也观察不到"已超时但仍挂起"的窗口，timeout/escalation 卡片没有触发时机。期望：保留一个 pending-but-late 状态，或提供决策事件推送/webhook 订阅（当前无任何事件接口，控制台只能轮询 listPending）。
-- （commerce 缺口：待第二批受控写落地时再登记）
+- commerce 缺口（退款列表 / 内容列表 GET 缺失、commerce 域决策必须经 commerce 端点审批）见下方「第二批」小节。
 
 ## 验证方式（真实服务 vs mock，逐项写明）
 - T-M8-05 真实链路：`scripts/verify-notify.sh`（zeus:3020 + console:3022 + receiver:3023 真实进程）。实测结果：新建真实 D2（dec_…bmey）约 5.0s 收到 pending 卡片、真实 D3（dec_…e5nz）约 0.5s 收到；额外 12s 跨多轮轮询后各自仍为 1 条（幂等）；登录态 GET 深链接 `/app/approvals/:id` 返回 200。
@@ -58,15 +58,15 @@
   3. 看板无独立 console JSON 端点（CONTRACT §3.2 只要求 SSR 展示），verify 通过 SSR HTML 逐字段比对。
 
 ## 集成验收（组织方在两子智能体交付后复核，2026-10-24）
-- 全量自检：`npx vitest run` **30/30**、`npx astro check` **0 error**（59 文件）、`npx eslint .` **0**、`npm run build` **成功**。
-- 真实链路：`scripts/verify-batch1.sh` **PASS=29 FAIL=0**（3020/3021/3022 真实进程）；`scripts/verify-notify.sh` **VERIFY OK**（D2 约 2.5s、D3 约 0.5s 投递，多轮轮询后各 1 条幂等，登录态深链接 200）。
-- 密钥边界：浏览器产物 `dist/client/` 与登录后页面 HTML（/app/approvals、/app/dashboard、/app/notifications）对上游 token **零命中**；上游 bearer 仅存在于 `dist/server/`。
-- 视觉验收：用本地 headless Chromium 对登录、审批列表、D3 审批详情（owner 可批/operator 禁用并提示"服务端仍 403"）、经营看板、通知投递（配置脱敏 + 投递日志 + 深链接）、设置（owner 阈值可改）逐页截图复核，深色工业风与家族 token 一致。
+- 全量自检（最终）：`npx vitest run` **40/40**（5 文件）、`npx astro check` **0 error**（80 文件）、`npx eslint .` **0 error / 0 warning**、`npm run build` **成功**。
+- 真实链路（真实进程）：`scripts/verify-batch1.sh` **PASS=29 FAIL=0**（认证/RBAC/审批/看板）；`scripts/verify-notify.sh` **VERIFY OK**（D2 约 2.5s、D3 约 0.5s 投递，多轮轮询后各 1 条幂等，登录态深链接 200）；`scripts/verify-batch2.sh` **PASS=21 FAIL=0**（上架 D3/拉单/库存/退款 D2 受控写闭环，见下）。
+- 密钥边界：浏览器产物 `dist/client/` 与全部登录后页面 HTML（approvals、dashboard、notifications、products、orders、refunds、inventory、content）对上游 token **零命中**；上游 bearer 仅存在于 `dist/server/`。
+- 视觉验收：用本地 headless Chromium 对登录、审批列表/详情（owner 可批/operator D3 禁用并提示"服务端仍 403"）、看板、通知投递、设置，以及商品/订单/退款/库存/内容五个运营页逐页截图复核，深色工业风与家族 token 一致。
 - 进程独立性：关停 ops-console（3022）后，zeus（3020）/commerce（3021）的 /healthz 与带 token 的 API（decisions、dashboard）仍返回 200，底层 API 不受影响。
-- 结论：**第一批（T-M8-01～05 中的审批链路）开发完成、本地可验证全绿；不标记 GATE-M8。**
+- 结论：**T-M8-01～05 本地开发完成、本地可验证全绿（两批均落地）；不标记 GATE-M8**（连续 7 天现网运营、真实 webhook 触达、真实店铺/云部署属外部验收）。
 
 ## 可推送状态（给主线 owner）
-- 已在 `dev` 分支整理为**单一职责原子提交序列**（scaffold → 主题/布局 → 上游聚合层 → 认证/RBAC → 审批工作台 → 只读看板 → webhook 通知 → 本地联调脚本 → 文档），废弃的 server+web 双包骨架**未进入历史**，public 第一版即单进程 SSR 形态。
+- 已在 `dev` 分支整理为**单一职责原子提交序列**（scaffold → 主题/布局 → 上游聚合层 → 认证/RBAC → 审批工作台 → 只读看板 → webhook 通知 → 本地联调脚本 → 文档；第二批再追加：受控写服务/端点 → 运营只读页与交互岛 → 第二批 seed/验证脚本 → 文档），废弃的 server+web 双包骨架**未进入历史**，public 第一版即单进程 SSR 形态，且两批功能同处一个干净历史。
 - 仓内只有 `.env.example` 占位，**无任何真实密钥**；`.env`、`data/`、`*.db`、`*.jsonl` 已 gitignore。
 - 未建 remote、未 `gh repo create`、未 `git push`（按 owner 指令由主线建 public remote、做密钥扫描后推送 dev，main 待第一批稳定后经 PR 合并）。
 - 规划仓地址：github.com/bayernjf/ops-console（尚未创建）。
@@ -75,3 +75,16 @@
 - GATE-M8：连续 7 天现网运营全部在控制台完成、无人直接调 API。
 - 真实 webhook（飞书/微信/邮件）URL 未定义，待外部确定后替换 `OPS_NOTIFY_WEBHOOK_URL`。
 - 生产认证：Cloudflare Access / GitHub OIDC 为预留 seam；现网部署、域名/TLS、真实店铺（M6 外部阻塞）。
+
+### 第二批：受控写 + 运营只读页（T-M8-04 主体，2026-10-24）
+- 真实链路：`scripts/verify-batch2.sh` 对运行中的 commerce:3021 + console:3022 实跑，**PASS=21 FAIL=0**：seed（幂等）→ operator 建商品 201 → operator 提交上架 423（grade=D3, decisionId）→ operator 上架审批 **403** → owner 上架审批 status=listed 且 commerce 商品状态同步 listed → 拉单首次 1 单/二次 0 新增（幂等）→ 库存调整 201 qty=50 → operator 发起退款 423（D2 挂起）→ operator 批退款 **succeeded**（D2 两角色均可）→ 8 个只读接口/页面全 200。
+- 契约级 mock（Vitest node:http 假 commerce+假 zeus 起 localhost，真实 fetch 网络路径）：`tests/commerce-ops-service.test.ts` 10 例。全量 `npx vitest run` **40/40**（第一批 29 + notify 7 + 本批 10）。
+- 自检：`npx astro check` 0 errors（80 文件）；`npx eslint .` 0 error / 0 warning（ProductOps 响应类型已收紧为显式 ApiJson）；`npm run build` 成功；`grep dist/client/` 与五个运营页 HTML 对上游 token 零命中。
+- 组织方复核：`npx vitest run` 40/40、`astro check` 0、`eslint` 0、`build` 成功；`verify-batch2.sh` 实跑 **PASS=21 FAIL=0**；五个运营页（商品/订单/退款/库存/内容）headless 截图复核，深色工业风一致、真实数据与受控动作就位、退款/内容列表缺口在 UI 显式标注。
+- **集成约束（重要）**：commerce 域决策（上架 D3 / 退款 D2）必须经 commerce 自己的端点（`/api/v1/listings/:decisionId/approve|reject`、`/api/v1/refunds/:id/decision`）才会执行渠道副作用（沙箱发布、渠道退款）；通用 zeus 工作台 `/app/approvals`（直连 zeus 批准）**不会触发任何渠道动作**。本批在商品页 ProductOps 与退款页 RefundOps 就近呈现挂起 decisionId 与审批按钮，通用 zeus 工作台保持不变。
+- 编排集中在 `src/server/commerce-ops-service.ts`：受控动作先 `requireOperable`（owner/operator 均可）；上架/退款审批前先读 zeus `getDecision(decisionId)` 取 grade，D3 仅 owner（canApprove），再透传 commerce；approver 一律注入会话用户名；423 原样透传不吞，UI 呈现"待审批"。
+- seed：`scripts/seed-dev.sh`（直连 commerce 幂等创建沙箱渠道账号 + 演示商品 SKU-DEMO-001，已存在则 SKIP；渠道账号创建不做成控制台功能）。实测产物：acc_sandbox-douyin-bce209 / prd_afbd75ba42-2164bb。
+
+#### 新增内核缺口（commerce，本仓不改）
+- **commerce 无退款列表 GET 端点**：只能 GET `/api/v1/refunds/:id` 详情，无 `/api/v1/refunds` 列表；退款页已明示该缺口。
+- **commerce 无内容列表 GET 端点**：内容页改用事件流 `/api/v1/events?eventType=product.listed` + dashboard `content.published` 口径只读派生。

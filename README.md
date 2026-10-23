@@ -51,11 +51,14 @@ npm test            # Vitest（RBAC/契约/通知本地端到端）
 
 ## 真实链路验收（本地三进程）
 ```bash
+bash scripts/seed-dev.sh         # 一次性：幂等建沙箱渠道账号 + 演示商品（免凭据）
 bash scripts/verify-batch1.sh    # 401/403、D3 owner-only、审批与 zeus 一致、看板口径：PASS 29/0
 bash scripts/verify-notify.sh    # 挂起→投递(≤60s)→幂等→深链接 200（脚本自起 3023 接收端）
+bash scripts/verify-batch2.sh    # 上架 D3/拉单/库存/退款 D2 受控写闭环：PASS 21/0
 ```
 
 ## 状态
-- **第一批（认证/RBAC、只读看板、D1–D3 审批、通知深链接）开发完成 + 本地验证全绿**：Vitest 30/30、astro check 0 error、eslint 0、build 成功。
-- **第二批（受控写：上架提交/退款审批/库存手工调整）待实现**。
+- **第一批（认证/RBAC、只读看板、D1–D3 审批、通知深链接）开发完成 + 本地验证全绿**。
+- **第二批（受控写：商品/订单/退款/内容/库存只读页 + 上架提交/退款审批/库存手工调整）开发完成 + 本地验证全绿**。
+- 最终：Vitest 40/40、astro check 0 error、eslint 0、build 成功；`verify-batch1.sh` 29/0、`verify-notify.sh` OK、`verify-batch2.sh` 21/0。
 - **GATE-M8 未过门**：连续 7 天现网运营、真实 webhook 触达、真实店铺/云部署依赖外部条件，不在本轮范围。
