@@ -1,0 +1,174 @@
+---
+import ConsoleLayout from '../../../layouts/ConsoleLayout.astro';
+import { getNotifyConfig, listDeliveries } from '../../../server/notify/index.js';
+
+const session = Astro.locals.session!;
+const isOwner = session.role === 'owner';
+const config = getNotifyConfig();
+const deliveries = listDeliveries().slice(0, 100);
+---
+<ConsoleLayout title="通知投递" session={session}>
+  <section class="card">
+    <h2>当前配置</h2>
+    <dl class="config-grid">
+      <div><dt>开关</dt><dd>{config.enabled ? '已启用' : '已停用'}</dd></div>
+      <div><dt>接收通道（脱敏）</dt><dd class="mono">{config.webhookUrl || '未配置'}</dd></div>
+      <div><dt>轮询间隔</dt><dd class="mono">{config.pollMs} ms</dd></div>
+      <div><dt>升级间隔</dt><dd class="mono">{config.escalationMinutes} 分钟</dd></div>
+    </dl>
+
+    {isOwner && (
+      <form id="notify-config-form" class="config-form">
+        <label class="field">
+          <span>启用</span>
+          <input type="checkbox" name="enabled" checked={config.enabled} />
+        </label>
+        <label class="field">
+          <span>Webhook 完整 URL（含 token，仅 owner 可见可改）</span>
+          <input type="text" name="webhookUrl" placeholder="http://127.0.0.1:3023/hook" />
+        </label>
+        <label class="field">
+          <span>轮询间隔 ms</span>
+          <input type="number" name="pollMs" min="1000" step="1000" value={config.pollMs} />
+        </label>
+        <label class="field">
+          <span>升级间隔 分钟</span>
+          <input type="number" name="escalationMinutes" min="1" step="1" value={config.escalationMinutes} />
+        </label>
+        <div class="actions">
+          <button type="submit" class="btn">保存配置</button>
+          <button type="button" id="notify-test-btn" class="btn btn--ghost">发一条测试</button>
+          <span id="notify-form-msg" class="msg"></span>
+        </div>
+      </form>
+    )}
+    {!isOwner && <p class="hint">仅 owner 可修改通知配置或发送测试卡片。</p>}
+  </section>
+
+  <section class="card">
+    <h2>投递日志</h2>
+    {deliveries.length === 0 ? (
+      <p class="hint">暂无投递记录。</p>
+    ) : (
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>decisionId</th><th>级别</th><th>事件</th><th>状态</th>
+              <th>次数</th><th>HTTP</th><th>最后尝试</th><th>错误</th><th>深链接</th>
+            </tr>
+          </thead>
+          <tbody>
+            {deliveries.map((d) => (
+              <tr>
+                <td class="mono">{d.decisionId}</td>
+                <td>{d.grade}</td>
+                <td>{d.event}</td>
+                <td><span class={`tag tag--${d.status === 'delivered' ? 'ok' : 'err'}`}>{d.status}</span></td>
+                <td>{d.attempts}</td>
+                <td class="mono">{d.httpStatus ?? '—'}</td>
+                <td class="mono">{d.lastAttemptAt ?? '—'}</td>
+                <td class="err-text">{d.error ?? '—'}</td>
+                <td><a href={d.deepLink} target="_blank" rel="noreferrer">打开</a></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    )}
+  </section>
+</ConsoleLayout>
+
+<script>
+  const form = document.getElementById('notify-config-form') as HTMLFormElement | null;
+  const msg = document.getElementById('notify-form-msg');
+  const testBtn = document.getElementById('notify-test-btn');
+
+  function setMsg(text: string) {
+    if (msg) msg.textContent = text;
+  }
+
+  form?.addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    const data = new FormData(form);
+    const patch: Record<string, unknown> = {
+      enabled: data.get('enabled') === 'on',
+      pollMs: Number(data.get('pollMs')),
+      escalationMinutes: Number(data.get('escalationMinutes')),
+    };
+    const url = String(data.get('webhookUrl') ?? '').trim();
+    if (url) patch.webhookUrl = url;
+    try {
+      const res = await fetch('/api/notify/config', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(patch),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        setMsg(`保存失败：${body?.error?.message ?? res.status}`);
+        return;
+      }
+      setMsg('已保存，即将刷新…');
+      setTimeout(() => window.location.reload(), 600);
+    } catch (thrown) {
+      setMsg(`保存失败：${String(thrown)}`);
+    }
+  });
+
+  testBtn?.addEventListener('click', async () => {
+    setMsg('发送中…');
+    try {
+      const res = await fetch('/api/notify/test', { method: 'POST' });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setMsg(`发送失败：${body?.error?.message ?? res.status}`);
+        return;
+      }
+      setMsg(`已发送（${body?.delivery?.status ?? '?'}, 尝试 ${body?.delivery?.attempts ?? '?'} 次），即将刷新…`);
+      setTimeout(() => window.location.reload(), 600);
+    } catch (thrown) {
+      setMsg(`发送失败：${String(thrown)}`);
+    }
+  });
+</script>
+
+<style>
+  .card {
+    background: var(--steel-900);
+    border: var(--hair);
+    border-radius: 8px;
+    padding: 18px 20px;
+    margin-bottom: 18px;
+  }
+  .card h2 { font-size: 14px; margin: 0 0 12px; color: var(--ink); }
+  .config-grid { display: grid; grid-template-columns: repeat(4, minmax(140px, 1fr)); gap: 10px 18px; margin: 0 0 14px; }
+  .config-grid dt { font-size: 11px; color: var(--ink-dim); }
+  .config-grid dd { margin: 2px 0 0; font-size: 13px; }
+  .mono { font-family: var(--mono); font-size: 12px; }
+  .config-form { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; border-top: var(--hair); padding-top: 12px; }
+  .field { display: flex; flex-direction: column; gap: 4px; font-size: 11px; color: var(--ink-dim); }
+  .field input {
+    background: var(--steel-800); color: var(--ink); border: var(--hair);
+    border-radius: 6px; padding: 7px 9px; font-size: 13px; min-width: 180px;
+  }
+  .field input[type="number"] { min-width: 90px; }
+  .field input[type="checkbox"] { min-width: 0; width: 18px; height: 18px; }
+  .actions { display: flex; gap: 10px; align-items: center; }
+  .btn {
+    background: var(--steel-800); color: var(--ink); border: var(--hair);
+    border-radius: 6px; padding: 8px 14px; font-size: 13px; cursor: pointer;
+  }
+  .btn--ghost { background: transparent; }
+  .btn:hover { border-color: var(--data); }
+  .msg { font-size: 12px; color: var(--ink-dim); }
+  .hint { color: var(--ink-dim); font-size: 12px; }
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th, td { text-align: left; padding: 7px 9px; border-bottom: var(--hair); }
+  th { color: var(--ink-dim); font-weight: 500; font-size: 11px; }
+  .tag { padding: 2px 7px; border-radius: 10px; font-size: 11px; font-family: var(--mono); }
+  .tag--ok { background: rgba(80, 200, 140, 0.15); color: #5fd3a5; }
+  .tag--err { background: rgba(230, 100, 100, 0.15); color: #ef8a8a; }
+  .err-text { color: #ef8a8a; max-width: 260px; word-break: break-all; }
+</style>
