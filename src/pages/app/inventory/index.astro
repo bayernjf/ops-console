@@ -1,8 +1,51 @@
 ---
 import ConsoleLayout from '../../../layouts/ConsoleLayout.astro';
-const session = Astro.locals.session;
+import InventoryOps from '../../../islands/InventoryOps';
+import { getContext } from '../../../server/context.js';
+import { listInventory, listProducts } from '../../../server/commerce-ops-service.js';
+
+const session = Astro.locals.session!;
+let inventory: any[] = [];
+let products: any[] = [];
+let loadError = '';
+try {
+  const [inv, p] = await Promise.all([
+    listInventory(getContext()),
+    listProducts(getContext()),
+  ]);
+  inventory = (inv as any).inventory;
+  products = (p as any).products;
+} catch (thrown) {
+  loadError = thrown instanceof Error ? thrown.message : String(thrown);
+}
+const skus = products.flatMap((p: any) => (p.skus ?? []).map((s: any) => ({ id: s.id, skuCode: s.skuCode })));
 ---
-<ConsoleLayout title="库存" session={session!}>
-  <div class="panel"><p class="placeholder">库存只读 + 库存手工调整（受控写）——第二批交付。</p></div>
+<ConsoleLayout title="库存" session={session}>
+  {loadError ? <div class="panel panel--error"><p>上游不可达：{loadError}</p></div> : null}
+
+  {skus.length > 0 ? <InventoryOps client:load skus={skus} /> : null}
+
+  <div class="panel">
+    <h3>库存列表（commerce 透传）</h3>
+    {inventory.length === 0 ? <p class="hint">暂无库存记录。</p> : (
+      <table class="data-table">
+        <thead><tr><th>SKU ID</th><th>可用数量</th><th>更新时间</th></tr></thead>
+        <tbody>
+          {inventory.map((r: any) => (
+            <tr><td class="mono">{r.skuId}</td><td>{r.qtyAvailable}</td><td class="mono">{r.updatedAt}</td></tr>
+          ))}
+        </tbody>
+      </table>
+    )}
+  </div>
 </ConsoleLayout>
-<style>.placeholder { color: var(--ink-dim); }</style>
+<style>
+  .panel { padding: 14px 18px; border: var(--hair); border-radius: 8px; background: var(--steel-850); margin-bottom: 14px; }
+  .panel--error { border-color: var(--alert); }
+  .panel h3 { margin: 0 0 10px; font-size: 14px; }
+  .hint { color: var(--ink-dim); font-size: 12px; }
+  .mono { font-family: var(--mono); font-size: 12px; }
+  .data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .data-table th { text-align: left; color: var(--ink-faint); font-size: 12px; padding: 6px 8px; border-bottom: var(--hair); }
+  .data-table td { padding: 8px; border-bottom: 1px solid var(--steel-800); }
+</style>

@@ -1,8 +1,58 @@
 ---
 import ConsoleLayout from '../../../layouts/ConsoleLayout.astro';
-const session = Astro.locals.session;
+import OrdersOps from '../../../islands/OrdersOps';
+import { getContext } from '../../../server/context.js';
+import { listOrders, listChannelAccounts } from '../../../server/commerce-ops-service.js';
+
+const session = Astro.locals.session!;
+let orders: any[] = [];
+let accounts: any[] = [];
+let loadError = '';
+try {
+  const [o, a] = await Promise.all([
+    listOrders(getContext()),
+    listChannelAccounts(getContext()),
+  ]);
+  orders = (o as any).orders;
+  accounts = (a as any).accounts;
+} catch (thrown) {
+  loadError = thrown instanceof Error ? thrown.message : String(thrown);
+}
 ---
-<ConsoleLayout title="订单" session={session!}>
-  <div class="panel"><p class="placeholder">订单只读列表 + 拉单——第二批交付。</p></div>
+<ConsoleLayout title="订单" session={session}>
+  {loadError ? <div class="panel panel--error"><p>上游不可达：{loadError}</p></div> : null}
+
+  <OrdersOps client:load accounts={accounts} />
+
+  <div class="panel">
+    <h3>订单列表（commerce 透传）</h3>
+    {orders.length === 0 ? <p class="hint">暂无订单，先通过上方拉单从渠道同步。</p> : (
+      <table class="data-table">
+        <thead><tr><th>ID</th><th>渠道</th><th>外部单号</th><th>状态</th><th>金额</th><th>创建</th><th>详情</th></tr></thead>
+        <tbody>
+          {orders.map((o: any) => (
+            <tr>
+              <td class="mono">{o.id}</td>
+              <td>{o.channel}</td>
+              <td class="mono">{o.externalOrderId}</td>
+              <td><span class="status status--decided">{o.status}</span></td>
+              <td class="mono">{o.totalAmount} {o.currency}</td>
+              <td class="mono">{o.createdAt}</td>
+              <td><a class="btn btn--ghost btn--sm" href={`/app/orders/${o.id}`}>详情</a></td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    )}
+  </div>
 </ConsoleLayout>
-<style>.placeholder { color: var(--ink-dim); }</style>
+<style>
+  .panel { padding: 14px 18px; border: var(--hair); border-radius: 8px; background: var(--steel-850); margin-bottom: 14px; }
+  .panel--error { border-color: var(--alert); }
+  .panel h3 { margin: 0 0 10px; font-size: 14px; }
+  .hint { color: var(--ink-dim); font-size: 12px; }
+  .mono { font-family: var(--mono); font-size: 12px; }
+  .data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .data-table th { text-align: left; color: var(--ink-faint); font-size: 12px; padding: 6px 8px; border-bottom: var(--hair); }
+  .data-table td { padding: 8px; border-bottom: 1px solid var(--steel-800); vertical-align: top; }
+</style>

@@ -75,3 +75,16 @@
 .policy-note code { color: var(--ink-faint); }
 .threshold-form { display: flex; gap: 16px; align-items: end; flex-wrap: wrap; margin-top: 14px; }
 .threshold-form label { display: flex; flex-direction: column; gap: 5px; font-size: 12px; color: var(--ink-dim); }
+
+/* ---- Batch-2 ops islands (forms, panels) ---- */
+.ops-grid { display: flex; flex-direction: column; gap: 14px; margin-bottom: 14px; }
+.ops-box { padding: 14px 18px; border: var(--hair); border-radius: 8px; background: var(--steel-850); }
+.ops-box h3 { margin: 0 0 10px; font-size: 14px; }
+.form-row { display: flex; gap: 14px; flex-wrap: wrap; align-items: end; margin-bottom: 12px; }
+.form-row label { display: flex; flex-direction: column; gap: 5px; font-size: 12px; color: var(--ink-dim); }
+.form-row input, .form-row select {
+  background: var(--steel-900); color: var(--ink); border: var(--hair); border-radius: 6px;
+  padding: 7px 9px; font: inherit; min-width: 180px;
+}
+.form-row label.check { flex-direction: row; align-items: center; gap: 6px; }
+.settle-row { display: flex; gap: 10px; align-items: center; margin-top: 10px; flex-wrap: wrap; }

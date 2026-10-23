@@ -1,0 +1,52 @@
+---
+import ConsoleLayout from '../../../layouts/ConsoleLayout.astro';
+import { getContext } from '../../../server/context.js';
+import { getProduct } from '../../../server/commerce-ops-service.js';
+
+const session = Astro.locals.session!;
+const id = Astro.params.id ?? '';
+let product: any = null;
+let loadError = '';
+try {
+  product = (await getProduct(getContext(), id)).product;
+} catch (thrown) {
+  loadError = thrown instanceof Error ? thrown.message : String(thrown);
+}
+---
+<ConsoleLayout title={product ? `商品 ${product.title}` : '商品详情'} session={session}>
+  {loadError ? <div class="panel panel--error"><p>{loadError}</p><a class="back" href="/app/products">← 返回商品列表</a></div> : null}
+  {product ? (
+    <div class="panel">
+      <dl class="kv">
+        <div><dt>ID</dt><dd>{product.id}</dd></div>
+        <div><dt>标题</dt><dd>{product.title}</dd></div>
+        <div><dt>状态</dt><dd>{product.status}</dd></div>
+        <div><dt>渠道账号</dt><dd>{product.channelAccountId ?? '—'}</dd></div>
+        <div><dt>externalRef</dt><dd>{product.externalRef ?? '—'}</dd></div>
+        <div><dt>创建时间</dt><dd>{product.createdAt}</dd></div>
+      </dl>
+      <h3>SKU</h3>
+      <table class="data-table">
+        <thead><tr><th>SKU ID</th><th>编码</th><th>规格</th><th>价格</th><th>状态</th></tr></thead>
+        <tbody>
+          {(product.skus ?? []).map((s: any) => (
+            <tr><td>{s.id}</td><td>{s.skuCode}</td><td>{JSON.stringify(s.specs ?? {})}</td><td>{s.price} {s.currency}</td><td>{s.status}</td></tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  ) : null}
+</ConsoleLayout>
+<style>
+  .panel { padding: 16px 18px; border: var(--hair); border-radius: 8px; background: var(--steel-850); }
+  .panel--error { border-color: var(--alert); }
+  .back { color: var(--data); }
+  .kv { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px 18px; margin: 0 0 14px; }
+  .kv > div { display: flex; gap: 8px; font-size: 13px; }
+  .kv dt { color: var(--ink-faint); }
+  .kv dd { margin: 0; font-family: var(--mono); }
+  h3 { font-size: 13px; color: var(--ink-dim); }
+  .data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .data-table th { text-align: left; color: var(--ink-faint); font-size: 12px; padding: 6px 8px; border-bottom: var(--hair); }
+  .data-table td { padding: 8px; border-bottom: 1px solid var(--steel-800); font-family: var(--mono); font-size: 12px; }
+</style>

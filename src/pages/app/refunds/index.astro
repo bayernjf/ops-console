@@ -1,8 +1,16 @@
 ---
 import ConsoleLayout from '../../../layouts/ConsoleLayout.astro';
-const session = Astro.locals.session;
+import RefundOps from '../../../islands/RefundOps';
+const session = Astro.locals.session!;
 ---
-<ConsoleLayout title="退款" session={session!}>
-  <div class="panel"><p class="placeholder">退款只读 + 退款审批（受控写）——第二批交付。</p></div>
+<ConsoleLayout title="退款" session={session}>
+  <p class="hint gap-note">
+    说明：commerce 当前<b>没有退款列表 GET 端点</b>（已登记内核缺口）。本页支持发起退款与按 refund id 审批；
+    退款总览口径见「经营视图」。
+  </p>
+  <RefundOps client:load />
 </ConsoleLayout>
-<style>.placeholder { color: var(--ink-dim); }</style>
+<style>
+  .hint { color: var(--ink-dim); font-size: 12px; }
+  .gap-note { padding: 10px 14px; border: 1px dashed var(--steel-600); border-radius: 8px; background: var(--steel-850); }
+</style>
