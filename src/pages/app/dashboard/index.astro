@@ -1,0 +1,85 @@
+---
+import ConsoleLayout from '../../../layouts/ConsoleLayout.astro';
+import { getContext } from '../../../server/context.js';
+import { getDashboardMetrics } from '../../../server/dashboard-service.js';
+
+const session = Astro.locals.session!;
+
+let metrics = null;
+let errorMessage = '';
+try {
+  metrics = await getDashboardMetrics(getContext());
+} catch (thrown) {
+  errorMessage = thrown instanceof Error ? thrown.message : String(thrown);
+}
+
+function money(value: number, currency: string): string {
+  return `${value} ${currency}`;
+}
+---
+<ConsoleLayout title="经营视图" session={session}>
+  {errorMessage ? (
+    <div class="panel panel--error">
+      <h2>上游不可达</h2>
+      <p>commerce dashboard 暂时无响应（fail-closed）：{errorMessage}</p>
+    </div>
+  ) : null}
+
+  {metrics ? (
+    <div class="dash">
+      <p class="generated">
+        数据原样透传 commerce <code>GET /api/v1/dashboard</code> · 生成于 {metrics.generatedAt} · 口径：订单/退款/内容/净额（GMV−成功退款，不含成本）
+      </p>
+
+      <section class="card">
+        <h3>订单</h3>
+        <div class="grid">
+          <div class="metric"><span class="label">总订单数</span><span class="value">{metrics.orders.total}</span></div>
+          <div class="metric"><span class="label">已支付</span><span class="value">{metrics.orders.paid}</span></div>
+          <div class="metric"><span class="label">已完成</span><span class="value">{metrics.orders.completed}</span></div>
+          <div class="metric"><span class="label">成交总额 grossAmount</span><span class="value num">{money(metrics.orders.grossAmount, metrics.currency)}</span></div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h3>退款</h3>
+        <div class="grid">
+          <div class="metric"><span class="label">退款申请总数</span><span class="value">{metrics.refunds.total}</span></div>
+          <div class="metric"><span class="label">成功退款</span><span class="value">{metrics.refunds.succeeded}</span></div>
+          <div class="metric"><span class="label">已退金额 refundedAmount</span><span class="value num">{money(metrics.refunds.refundedAmount, metrics.currency)}</span></div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h3>内容</h3>
+        <div class="grid">
+          <div class="metric"><span class="label">已发布内容 published</span><span class="value">{metrics.content.published}</span></div>
+        </div>
+      </section>
+
+      <section class="card card--net">
+        <h3>净额 netAmount（不含成本）</h3>
+        <div class="grid">
+          <div class="metric"><span class="label">netAmount</span><span class="value num net">{money(metrics.netAmount, metrics.currency)}</span></div>
+        </div>
+      </section>
+    </div>
+  ) : null}
+</ConsoleLayout>
+<style>
+  .panel { padding: 16px 18px; border: var(--hair); border-radius: 8px; background: var(--steel-850); }
+  .panel--error { border-color: var(--alert); }
+  .generated { color: var(--ink-dim); font-size: 12px; margin: 0 0 14px; }
+  .generated code { font-family: var(--mono); color: var(--ink-faint); }
+
+  .dash { display: flex; flex-direction: column; gap: 14px; }
+  .card { border: var(--hair); border-radius: 8px; background: var(--steel-850); padding: 14px 18px; }
+  .card h3 { margin: 0 0 12px; font-size: 13px; color: var(--ink-dim); font-weight: 600; }
+  .card--net { border-left: 3px solid var(--ok); }
+  .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; }
+  .metric { display: flex; flex-direction: column; gap: 6px; }
+  .label { font-size: 11px; color: var(--ink-faint); }
+  .value { font-family: var(--mono); font-size: 22px; font-weight: 600; color: var(--ink); }
+  .value.num { color: var(--data); }
+  .value.net { color: var(--ok); font-size: 26px; }
+</style>
