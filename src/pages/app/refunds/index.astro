@@ -1,0 +1,8 @@
+---
+import ConsoleLayout from '../../../layouts/ConsoleLayout.astro';
+const session = Astro.locals.session;
+---
+<ConsoleLayout title="退款" session={session!}>
+  <div class="panel"><p class="placeholder">退款只读 + 退款审批（受控写）——第二批交付。</p></div>
+</ConsoleLayout>
+<style>.placeholder { color: var(--ink-dim); }</style>

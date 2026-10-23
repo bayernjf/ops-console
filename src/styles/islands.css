@@ -1,0 +1,77 @@
+/* Shared UI classes rendered inside React islands (ApprovalList,
+ * ApprovalActions, PolicyThresholds). Scoped Astro styles do not reach into
+ * island DOM, so these must be global. Dark industrial tokens come from
+ * tokens.css. */
+
+/* ---- Buttons (shared) ---- */
+.btn { cursor: pointer; border-radius: 6px; border: var(--hair); padding: 7px 14px; font: inherit; font-size: 13px; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn--primary { background: var(--data-dim); color: var(--data); border-color: var(--data-dim); }
+.btn--primary:hover:not(:disabled) { background: var(--data); color: var(--steel-950); }
+.btn--ghost { background: transparent; color: var(--ink-dim); }
+.btn--ghost:hover:not(:disabled) { color: var(--ink); border-color: var(--ink-dim); }
+.btn--sm { padding: 3px 9px; font-size: 12px; }
+.btn--approve { background: rgba(102, 224, 122, 0.15); color: var(--ok); border-color: rgba(102, 224, 122, 0.4); }
+.btn--approve:hover:not(:disabled) { background: var(--ok); color: var(--steel-950); }
+.btn--reject { background: rgba(255, 74, 61, 0.12); color: var(--alert); border-color: rgba(255, 74, 61, 0.4); }
+.btn--reject:hover:not(:disabled) { background: var(--alert); color: var(--steel-950); }
+
+/* ---- Grade / status tags ---- */
+.grade { display: inline-block; padding: 2px 10px; border-radius: 10px; font-size: 11px; font-family: var(--mono); font-weight: 700; }
+.grade--d0, .grade--D0 { background: var(--steel-700); color: var(--ink-dim); }
+.grade--d1, .grade--D1 { background: var(--data-dim); color: var(--data); }
+.grade--d2, .grade--D2 { background: var(--power-dim); color: var(--power); }
+.grade--d3, .grade--D3 { background: rgba(255, 74, 61, 0.18); color: var(--alert); }
+
+.status { font-family: var(--mono); font-size: 11px; }
+.status--awaiting_approval { color: var(--power); }
+.status--blocked { color: var(--alert); }
+.status--decided { color: var(--ok); }
+.status--rejected { color: var(--ink-dim); }
+
+/* ---- ApprovalList island ---- */
+.approval-list { display: flex; flex-direction: column; gap: 12px; }
+.list-toolbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.filter { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--ink-dim); }
+.filter select, .comment-input, .threshold-form input, .threshold-form select {
+  background: var(--steel-900); color: var(--ink); border: var(--hair); border-radius: 6px;
+  padding: 7px 9px; font: inherit;
+}
+.list-meta { color: var(--ink-faint); font-size: 12px; font-family: var(--mono); margin-left: auto; }
+.list-error { color: var(--alert); font-size: 13px; }
+.list-empty { color: var(--ink-dim); padding: 24px 0; }
+
+.approval-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.approval-table th {
+  text-align: left; color: var(--ink-faint); font-weight: 500; font-size: 12px;
+  padding: 8px 10px; border-bottom: var(--hair);
+}
+.approval-table td { padding: 10px; border-bottom: 1px solid var(--steel-800); vertical-align: top; }
+.approval-table tr:hover td { background: var(--steel-850); }
+.approval-table .num { font-family: var(--mono); white-space: nowrap; }
+.approval-table .time { font-family: var(--mono); font-size: 12px; color: var(--ink-dim); }
+.intent { color: var(--data); text-decoration: none; font-weight: 500; }
+.intent-link { text-decoration: none; display: block; }
+.domain { color: var(--ink-faint); font-size: 11px; font-family: var(--mono); }
+.rule { font-family: var(--mono); font-size: 12px; }
+.rule-reason { color: var(--ink-faint); font-size: 11px; max-width: 280px; }
+.overdue { color: var(--alert); font-weight: 700; font-size: 12px; }
+
+/* ---- ApprovalActions island ---- */
+.approval-actions { display: flex; flex-direction: column; gap: 10px; }
+.comment-label { font-size: 12px; color: var(--ink-dim); }
+.comment-input { width: 100%; resize: vertical; font-family: var(--mono); font-size: 13px; }
+.lock-note { color: var(--power); font-size: 12px; margin: 0; }
+.lock-note code { color: var(--ink-dim); }
+.action-row { display: flex; gap: 10px; }
+.settled-note { color: var(--ink-dim); font-size: 13px; }
+.settled-note code { color: var(--data); }
+.action-ok { color: var(--ok); font-size: 13px; }
+.action-failed { color: var(--alert); font-size: 13px; }
+
+/* ---- PolicyThresholds island ---- */
+.policy-thresholds h3 { margin: 0 0 8px; font-size: 14px; }
+.policy-note { color: var(--ink-dim); font-size: 12px; margin: 0 0 8px; }
+.policy-note code { color: var(--ink-faint); }
+.threshold-form { display: flex; gap: 16px; align-items: end; flex-wrap: wrap; margin-top: 14px; }
+.threshold-form label { display: flex; flex-direction: column; gap: 5px; font-size: 12px; color: var(--ink-dim); }

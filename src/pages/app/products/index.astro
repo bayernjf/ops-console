@@ -1,0 +1,8 @@
+---
+import ConsoleLayout from '../../../layouts/ConsoleLayout.astro';
+const session = Astro.locals.session;
+---
+<ConsoleLayout title="商品" session={session!}>
+  <div class="panel"><p class="placeholder">商品只读列表 + 受控动作（上架提交）——第二批交付。</p></div>
+</ConsoleLayout>
+<style>.placeholder { color: var(--ink-dim); }</style>
