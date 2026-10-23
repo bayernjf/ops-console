@@ -1,0 +1,141 @@
+---
+import ConsoleLayout from '../../../layouts/ConsoleLayout.astro';
+import ApprovalActions from '../../../islands/ApprovalActions';
+import { getContext } from '../../../server/context.js';
+import { getApproval } from '../../../server/approvals-service.js';
+import { UpstreamError } from '../../../server/upstream/http.js';
+
+const session = Astro.locals.session!;
+const id = Astro.params.id ?? '';
+
+let decision = null;
+let errorTitle = '';
+let errorDetail = '';
+try {
+  decision = await getApproval(getContext(), id);
+} catch (thrown) {
+  if (thrown instanceof UpstreamError) {
+    if (thrown.status === 404) {
+      errorTitle = '决策不存在';
+      errorDetail = `zeus 返回 404：${thrown.message}`;
+    } else if (thrown.status === 503) {
+      errorTitle = '上游不可达';
+      errorDetail = 'zeus 暂时无响应（503 UPSTREAM_UNAVAILABLE），fail-closed。';
+    } else {
+      errorTitle = `上游错误 ${thrown.status}`;
+      errorDetail = thrown.message;
+    }
+  } else {
+    errorTitle = '控制台错误';
+    errorDetail = thrown instanceof Error ? thrown.message : String(thrown);
+  }
+}
+
+function fmt(iso?: string): string {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? iso : d.toLocaleString('zh-CN', { hour12: false });
+}
+---
+<ConsoleLayout title={decision ? `审批详情 ${decision.id}` : '审批详情'} session={session}>
+  {errorTitle ? (
+    <div class="panel panel--error">
+      <h2>{errorTitle}</h2>
+      <p>{errorDetail}</p>
+      <a class="back-link" href="/app/approvals">← 返回待办列表</a>
+    </div>
+  ) : null}
+
+  {decision ? (
+    <div class="detail">
+      <div class="panel">
+        <div class="head">
+          <div>
+            <span class={`grade grade--${decision.grade}`}>{decision.grade}</span>
+            <code class="did">{decision.id}</code>
+          </div>
+          <span class={`status status--${decision.status}`}>{decision.status} · {decision.mode}</span>
+        </div>
+        <h2 class="intent">{decision.intent}</h2>
+        <dl class="snapshot">
+          <div><dt>domain</dt><dd>{decision.domain}</dd></div>
+          <div><dt>金额</dt><dd class="num">{decision.amount ? `${decision.amount.value} ${decision.amount.currency}` : '—'}</dd></div>
+          <div><dt>impact</dt><dd>{decision.impact}</dd></div>
+          <div><dt>reversibility</dt><dd>{decision.reversibility}</dd></div>
+          <div><dt>riskTags</dt><dd>{decision.riskTags?.length ? decision.riskTags.join(', ') : '—'}</dd></div>
+          <div><dt>命中规则</dt><dd>{decision.ruleId}</dd></div>
+          <div><dt>gradeReason</dt><dd>{decision.gradeReason}</dd></div>
+          <div><dt>policyVersion</dt><dd>{decision.policyVersion}</dd></div>
+          <div><dt>创建</dt><dd>{fmt(decision.createdAt)}</dd></div>
+          <div><dt>更新</dt><dd>{fmt(decision.updatedAt)}</dd></div>
+          <div><dt>超时</dt><dd>{fmt(decision.timeoutAt)}</dd></div>
+          <div><dt>idempotencyKey</dt><dd>{decision.idempotencyKey ?? '—'}</dd></div>
+        </dl>
+        {decision.proposal !== undefined ? (
+          <div class="proposal">
+            <dt>proposal 快照</dt>
+            <pre>{JSON.stringify(decision.proposal, null, 2)}</pre>
+          </div>
+        ) : null}
+      </div>
+
+      <div class="panel">
+        <h3>证据 / replay</h3>
+        <p class="hint">
+          <a href={`/api/approvals/${decision.id}/replay?format=json`} target="_blank">replay JSON</a>
+          {' · '}
+          <a href={`/api/approvals/${decision.id}/replay?format=text`} target="_blank">replay 文本</a>
+          （透传 zeus 审计事件链）
+        </p>
+        {decision.approvals.length > 0 ? (
+          <table class="approval-history">
+            <thead><tr><th>审批人</th><th>结论</th><th>备注</th><th>时间</th></tr></thead>
+            <tbody>
+              {decision.approvals.map((a) => (
+                <tr><td>{a.approver}</td><td>{a.verdict}</td><td>{a.comment ?? '—'}</td><td>{fmt(a.at)}</td></tr>
+              ))}
+            </tbody>
+          </table>
+        ) : <p class="hint">尚无审批记录。</p>}
+      </div>
+
+      <div class="panel">
+        <h3>批准 / 驳回</h3>
+        <ApprovalActions client:load decision={decision} role={session.role} />
+      </div>
+    </div>
+  ) : null}
+</ConsoleLayout>
+<style>
+  .panel { padding: 16px 18px; border: var(--hair); border-radius: 8px; background: var(--steel-850); margin-bottom: 14px; }
+  .panel--error { border-color: var(--alert); }
+  .panel h2, .panel h3 { margin: 0 0 10px; font-size: 15px; }
+  .hint { color: var(--ink-dim); font-size: 12px; }
+  .hint a, .back-link { color: var(--data); }
+
+  .detail { display: grid; gap: 0; }
+  .head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .did { font-family: var(--mono); color: var(--ink-dim); margin-left: 8px; font-size: 12px; }
+  .intent { margin: 4px 0 12px; font-size: 17px; }
+  .snapshot { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px 18px; margin: 0; }
+  .snapshot > div { display: flex; gap: 8px; font-size: 13px; }
+  .snapshot dt { color: var(--ink-faint); white-space: nowrap; }
+  .snapshot dd { margin: 0; font-family: var(--mono); }
+  .num { color: var(--power); }
+  .proposal { margin-top: 12px; }
+  .proposal pre {
+    background: var(--steel-900); padding: 10px; border-radius: 6px; overflow: auto;
+    font-size: 12px; color: var(--ink-dim);
+  }
+
+  .grade { display: inline-block; padding: 2px 10px; border-radius: 10px; font-size: 12px; font-family: var(--mono); font-weight: 700; }
+  .grade--D1 { background: var(--data-dim); color: var(--data); }
+  .grade--D2 { background: var(--power-dim); color: var(--power); }
+  .grade--D3 { background: rgba(255, 74, 61, 0.18); color: var(--alert); }
+  .grade--D0 { background: var(--steel-700); color: var(--ink-dim); }
+  .status { font-family: var(--mono); font-size: 12px; color: var(--ink-dim); }
+
+  .approval-history { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .approval-history th { text-align: left; color: var(--ink-faint); font-size: 12px; padding: 6px 8px; border-bottom: var(--hair); }
+  .approval-history td { padding: 7px 8px; border-bottom: 1px solid var(--steel-800); font-family: var(--mono); font-size: 12px; }
+</style>

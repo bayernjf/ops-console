@@ -1,0 +1,40 @@
+---
+import ConsoleLayout from '../../../layouts/ConsoleLayout.astro';
+import PolicyThresholds from '../../../islands/PolicyThresholds';
+import { getContext } from '../../../server/context.js';
+import { getPolicy } from '../../../server/policy-service.js';
+
+const session = Astro.locals.session!;
+
+let policy = null;
+let errorMessage = '';
+try {
+  policy = await getPolicy(getContext());
+} catch (thrown) {
+  errorMessage = thrown instanceof Error ? thrown.message : String(thrown);
+}
+---
+<ConsoleLayout title="设置" session={session}>
+  {errorMessage ? (
+    <div class="panel panel--error">
+      <h2>上游不可达</h2>
+      <p>zeus policy 暂时无响应（fail-closed）：{errorMessage}</p>
+    </div>
+  ) : null}
+
+  {policy ? (
+    <div class="panel">
+      <PolicyThresholds client:load policy={policy} role={session.role} />
+    </div>
+  ) : null}
+
+  <div class="panel panel--note">
+    <p class="hint">通知通道配置与投递日志见「通知投递」页（owner-only）；受控写（退款/库存）属第二批。</p>
+  </div>
+</ConsoleLayout>
+<style>
+  .panel { padding: 16px 18px; border: var(--hair); border-radius: 8px; background: var(--steel-850); margin-bottom: 14px; }
+  .panel--error { border-color: var(--alert); }
+  .panel--note { background: transparent; }
+  .hint { color: var(--ink-dim); font-size: 12px; margin: 0; }
+</style>
