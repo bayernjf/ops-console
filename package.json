@@ -1,0 +1,37 @@
+{
+  "name": "ops-console",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "dev": "astro dev --host 127.0.0.1 --port 3022",
+    "start": "node --experimental-sqlite dist/server/entry.mjs",
+    "build": "astro build",
+    "check": "astro check",
+    "typecheck": "astro check",
+    "test": "vitest run",
+    "lint": "eslint .",
+    "dev:upstream": "bash scripts/dev-upstream.sh",
+    "dev:receiver": "node --experimental-sqlite --env-file=.env scripts/fake-webhook-receiver.ts"
+  },
+  "dependencies": {
+    "@astrojs/node": "^11.1.9",
+    "@astrojs/react": "^5.0.0",
+    "@astrojs/check": "^0.9.10",
+    "astro": "7.2.10",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.5",
+    "eslint": "^9.0.0",
+    "typescript": "^5.7.2",
+    "typescript-eslint": "^8.0.0",
+    "vitest": "^2.1.0"
+  }
+}

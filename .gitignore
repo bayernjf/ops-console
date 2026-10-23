@@ -1,0 +1,13 @@
+node_modules/
+dist/
+.astro/
+coverage/
+*.log
+.env
+.env.local
+data/
+*.db
+*.db-journal
+*.sqlite
+*.jsonl
+.DS_Store
