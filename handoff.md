@@ -36,9 +36,19 @@
 - [x] 上架提交 + 批准/驳回（D3 owner-only）、退款申请/审批（D2 两角色均可）、库存手工调整，以及商品/订单/退款/内容/库存只读页；真实闭环见下文 verify-batch2（PASS=21）。
 
 ## 内核缺口（需回到 zeus/commerce 做，本仓不改内核）
-- **zeus 默认策略 v1 未给任何规则配置 slaHours**：真实 D2/D3 决策的记录上根本没有 `timeoutAt` 字段（list 与 detail 均确认）。控制台引擎对缺失的 timeoutAt 安全跳过 timeout/escalation，但这意味着对真实 zeus 这两类事件永远不会触发。期望：策略规则支持 slaHours，或在决策上显式给 SLA。
-- **zeus 的 SLA 超时是"读到即自动驳回"**（service.applyTimeout：timeoutAt 一过，下次 list/get 时立即把 status 置为 rejected、result.outcome=timed-out）。即使补上 slaHours，控制台也观察不到"已超时但仍挂起"的窗口，timeout/escalation 卡片没有触发时机。期望：保留一个 pending-but-late 状态，或提供决策事件推送/webhook 订阅（当前无任何事件接口，控制台只能轮询 listPending）。
-- commerce 缺口（退款列表 / 内容列表 GET 缺失、commerce 域决策必须经 commerce 端点审批）见下方「第二批」小节。
+
+> **2026-10-26 收口更新：下列 zeus / commerce 内核缺口已在各自仓库落码、过门并推送（zeus `origin/dev` `944ee6c..1376257`；commerce-os `origin/dev` `da106b2..c387650`）。本仓代码本轮未动；控制台侧消费（late 状态呈现、webhook 接收、退款/内容列表页接线）登记为下一批待办，见本节末尾「控制台侧接线待办（下一批）」。**
+
+- ✅ **【zeus 已闭环 2026-10-26】** ~~默认策略 v1 未给任何规则配置 slaHours，真实 D2/D3 决策没有 `timeoutAt` 字段~~。收口：`69f8fc3` feat(grading) + `9df3794` test——D2 规则 slaHours=24、D3=72，D1/D0 与自定义策略未配规则零行为变化（无 timeoutAt、永不超时），含反向门。
+- ✅ **【zeus 已闭环 2026-10-26】** ~~SLA 超时"读到即自动驳回"，无"已超时但仍挂起"窗口~~。收口：`f585ba3` feat(core) + `5ede5f9` test——两阶段超时：`DecisionRecord` 新增 `lateAt`、新审计 `decision.late`；breach 后保持 awaiting_approval/blocked 且仍可批准/驳回（pending-but-late），`lateGraceHours` 默认 72h（自 timeoutAt 起算，设 0 复刻旧"读到即驳回"语义，构造时校验非负），宽限期满才置 rejected/timed-out；`replay()` 呈现 created→late→approvals→timed-out 时间线。
+- ✅ **【zeus 已闭环 2026-10-26】** ~~无决策事件订阅/webhook，控制台只能轮询~~。收口：`61b1f31` feat(core) + `ba36ea1` feat(http) + `0670d6b` test + `5ed884d` docs——决策生命周期事件（created/late/approved/rejected/timed-out）经 HMAC-SHA256 签名（`x-zeus-signature`）webhook 投递，幂等键 `x-zeus-delivery-id`、网络错/5xx/429 有界指数退避（3 次）、其他 4xx 不重试、全路径 fail-soft；Bearer `GET/POST /api/v1/decision-webhooks`（secret 掩码永不下发、URL 限 http(s)、secret≥16），serve 经 `ZEUS_DECISION_WEBHOOK_URL`/`ZEUS_DECISION_WEBHOOK_SECRET` 种子订阅（URL 无 secret 时 fail-closed）。已知边界（zeus 侧后续）：订阅当前为内存态、无 DELETE/持久化，重启丢失；真实 webhook URL/secret 属外部凭据。
+- commerce 缺口（退款列表 / 内容列表 GET 缺失、commerce 域决策必须经 commerce 端点审批）见下方「第二批」小节；前两项已于 2026-10-26 闭环（见文末 commerce 小节），审批端点约束本批已在 ProductOps/RefundOps 遵守。
+
+### 控制台侧接线待办（下一批，本仓）
+1. 审批列表/详情消费真实 `timeoutAt`/`lateAt`：呈现 pending-but-late 状态与剩余宽限；timeout/escalation 卡片在 late 窗口内触发（引擎对缺失字段仍安全跳过，向后兼容旧 zeus）。
+2. 决策事件 webhook 接收端：订阅 zeus 决策 webhook（验签 `x-zeus-signature`、按 `x-zeus-delivery-id` 幂等、通道失败退避落 channel_failure，可复用 src/server/notify 既有管道），替代/补充 20s 轮询；真实 URL/secret 待定，本地可用 `scripts/fake-webhook-receiver.ts` 验收。
+3. 退款页接 `GET /api/v1/refunds`（列表）+ 既有 `:id` 详情；内容页接 `GET /api/v1/content` + `:id`（仅 published 投影，pending 待审 listing 不在内）。
+4. 联调基线：zeus 起真实服务时默认策略 v1 已带 slaHours；webhook 订阅经 env 种子或 POST 路由配置；commerce 新端点需与现有只读页字段逐字段对齐。
 
 ## 验证方式（真实服务 vs mock，逐项写明）
 - T-M8-05 真实链路：`scripts/verify-notify.sh`（zeus:3020 + console:3022 + receiver:3023 真实进程）。实测结果：新建真实 D2（dec_…bmey）约 5.0s 收到 pending 卡片、真实 D3（dec_…e5nz）约 0.5s 收到；额外 12s 跨多轮轮询后各自仍为 1 条（幂等）；登录态 GET 深链接 `/app/approvals/:id` 返回 200。
@@ -85,6 +95,8 @@
 - 编排集中在 `src/server/commerce-ops-service.ts`：受控动作先 `requireOperable`（owner/operator 均可）；上架/退款审批前先读 zeus `getDecision(decisionId)` 取 grade，D3 仅 owner（canApprove），再透传 commerce；approver 一律注入会话用户名；423 原样透传不吞，UI 呈现"待审批"。
 - seed：`scripts/seed-dev.sh`（直连 commerce 幂等创建沙箱渠道账号 + 演示商品 SKU-DEMO-001，已存在则 SKIP；渠道账号创建不做成控制台功能）。实测产物：acc_sandbox-douyin-bce209 / prd_afbd75ba42-2164bb。
 
-#### 新增内核缺口（commerce，本仓不改）
-- **commerce 无退款列表 GET 端点**：只能 GET `/api/v1/refunds/:id` 详情，无 `/api/v1/refunds` 列表；退款页已明示该缺口。
-- **commerce 无内容列表 GET 端点**：内容页改用事件流 `/api/v1/events?eventType=product.listed` + dashboard `content.published` 口径只读派生。
+#### 新增内核缺口（commerce，本仓不改）—— 2026-10-26 均已闭环
+- ✅ **退款列表 GET 已上线**：`GET /api/v1/refunds`（`4c07a40` feat(refunds)），全量列表、Bearer 鉴权、形状同 orders/products；详情 `/api/v1/refunds/:id` 原有，未知 id 404 `NOT_FOUND`。
+- ✅ **内容列表/详情 GET 已上线**：`GET /api/v1/content` 与 `GET /api/v1/content/:id`（`032d36d` feat(content)）；为 `product.listed` 事件的只读投影（id=externalContentId，字段：id/productId/channel/externalProductId/decisionId?/listedAt），口径与 dashboard `content.published` 严格一致。**pending（awaiting_approval）listing 不在列表内**——如需"待审内容任务"视图须另立需求。
+- 测试与文档：`c25482b` test（新增 9 例：空列表、种子读回、404、401 鉴权反向门；全量 18 文件 / 83 用例绿）、`c387650` docs；`check:migrations`/typecheck/lint/build 全绿，零新迁移。
+- 控制台前端接线（退款页/内容页从事件流派生切到新端点）属本仓下一批，见上方「控制台侧接线待办（下一批）」第 3 条。
