@@ -56,6 +56,16 @@
 .rule { font-family: var(--mono); font-size: 12px; }
 .rule-reason { color: var(--ink-faint); font-size: 11px; max-width: 280px; }
 .overdue { color: var(--alert); font-weight: 700; font-size: 12px; }
+.late-tag {
+  display: inline-block; margin-top: 3px; padding: 1px 6px; border-radius: 8px;
+  background: rgba(255, 176, 32, 0.16); color: var(--power);
+  font-size: 11px; font-family: var(--mono);
+}
+.timedout-tag {
+  display: inline-block; margin-top: 3px; padding: 1px 6px; border-radius: 8px;
+  background: rgba(255, 74, 61, 0.18); color: var(--alert);
+  font-size: 11px; font-family: var(--mono);
+}
 
 /* ---- ApprovalActions island ---- */
 .approval-actions { display: flex; flex-direction: column; gap: 10px; }

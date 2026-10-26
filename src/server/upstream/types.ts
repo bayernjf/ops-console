@@ -36,6 +36,11 @@ export interface DecisionRecord {
   updatedAt: string;
   auditSeq: number;
   decidedAt?: string;
+  /** Waiting records enter the pending-but-late window at this time. Absent
+   *  on records that never breached their SLA (older zeus kernels omit it). */
+  lateAt?: string;
+  /** Waiting records with an SLA expire at this ISO time. Absent when the
+   *  matching rule sets no slaHours (older zeus kernels / D0/D1 rules). */
   timeoutAt?: string;
   result?: {
     outcome: 'auto' | 'approved' | 'rejected' | 'timed-out';

@@ -3,6 +3,7 @@ import ConsoleLayout from '../../../layouts/ConsoleLayout.astro';
 import ApprovalActions from '../../../islands/ApprovalActions';
 import { getContext } from '../../../server/context.js';
 import { getApproval } from '../../../server/approvals-service.js';
+import { describeSla, humanizeMs } from '../../../server/sla.js';
 import { UpstreamError } from '../../../server/upstream/http.js';
 
 const session = Astro.locals.session!;
@@ -36,6 +37,8 @@ function fmt(iso?: string): string {
   const d = new Date(iso);
   return Number.isNaN(d.getTime()) ? iso : d.toLocaleString('zh-CN', { hour12: false });
 }
+
+const sla = decision ? describeSla(decision, Date.now()) : null;
 ---
 <ConsoleLayout title={decision ? `审批详情 ${decision.id}` : '审批详情'} session={session}>
   {errorTitle ? (
@@ -48,6 +51,22 @@ function fmt(iso?: string): string {
 
   {decision ? (
     <div class="detail">
+      {sla?.state === 'late' ? (
+        <div class="panel panel--late">
+          <strong>pending-but-late：已过 SLA，仍在宽限期内。</strong>
+          <p class="hint">
+            超时于 {fmt(sla.timeoutAt)}（已逾期 {humanizeMs(sla.overdueMs ?? 0)}）
+            {sla.lateAt ? `；宽限开始于 ${fmt(sla.lateAt)}（宽限已进行 ${humanizeMs(sla.inGraceMs ?? 0)}）` : ''}
+            。此期间仍可批准/驳回；宽限期满后 zeus 将自动置为 timed-out。
+          </p>
+        </div>
+      ) : null}
+      {sla?.state === 'timed-out' ? (
+        <div class="panel panel--late">
+          <strong>已超时关闭（timed-out）：</strong>
+          <span class="hint">宽限期满未处理，zeus 已将该决策置为 timed-out。</span>
+        </div>
+      ) : null}
       <div class="panel">
         <div class="head">
           <div>
@@ -69,6 +88,7 @@ function fmt(iso?: string): string {
           <div><dt>创建</dt><dd>{fmt(decision.createdAt)}</dd></div>
           <div><dt>更新</dt><dd>{fmt(decision.updatedAt)}</dd></div>
           <div><dt>超时</dt><dd>{fmt(decision.timeoutAt)}</dd></div>
+          <div><dt>进入宽限(lateAt)</dt><dd>{fmt(decision.lateAt)}</dd></div>
           <div><dt>idempotencyKey</dt><dd>{decision.idempotencyKey ?? '—'}</dd></div>
         </dl>
         {decision.proposal !== undefined ? (
@@ -109,6 +129,8 @@ function fmt(iso?: string): string {
 <style>
   .panel { padding: 16px 18px; border: var(--hair); border-radius: 8px; background: var(--steel-850); margin-bottom: 14px; }
   .panel--error { border-color: var(--alert); }
+  .panel--late { border-color: var(--power); background: rgba(255, 176, 32, 0.06); }
+  .panel--late p { margin: 6px 0 0; }
   .panel h2, .panel h3 { margin: 0 0 10px; font-size: 15px; }
   .hint { color: var(--ink-dim); font-size: 12px; }
   .hint a, .back-link { color: var(--data); }

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { DecisionRecord, Grade } from '../server/upstream/types';
+import { describeSla, humanizeMs } from '../server/sla';
 
 /**
  * Approval workbench list island (Tier0 M8 §3.1). Polls the same-origin
@@ -21,10 +22,6 @@ const GRADE_TAG_CLASS: Record<Grade, string> = {
   D2: 'grade grade--d2',
   D3: 'grade grade--d3',
 };
-
-function isOverdue(record: DecisionRecord, now: number): boolean {
-  return record.timeoutAt !== undefined && Date.parse(record.timeoutAt) < now;
-}
 
 function formatAmount(record: DecisionRecord): string {
   if (!record.amount) return '—';
@@ -120,7 +117,9 @@ export default function ApprovalList({ initial, refreshMs }: Props) {
             </tr>
           </thead>
           <tbody>
-            {visible.map((record) => (
+            {visible.map((record) => {
+              const sla = describeSla(record, now);
+              return (
               <tr key={record.id}>
                 <td>
                   <span className={GRADE_TAG_CLASS[record.grade]}>{record.grade}</span>
@@ -137,18 +136,27 @@ export default function ApprovalList({ initial, refreshMs }: Props) {
                   <div className="rule-reason">{record.gradeReason}</div>
                 </td>
                 <td>
-                  <span className={`status status--${record.status}`}>{record.status}</span>
+                  <span className={`status status--${record.status}`}
+                    >{record.status}</span>
+                  {sla.state === 'late' ? (
+                    <div className="late-tag" title="已过 SLA，仍在宽限期内可审批">
+                      宽限中 · 已逾期 {humanizeMs(sla.overdueMs ?? 0)}
+                    </div>
+                  ) : null}
+                  {sla.state === 'timed-out' ? (
+                    <div className="timedout-tag">已超时关闭</div>
+                  ) : null}
                 </td>
                 <td className="time">{formatTime(record.createdAt)}</td>
                 <td>
-                  {record.timeoutAt ? (
-                    isOverdue(record, now) ? (
-                      <span className="overdue">已超时</span>
-                    ) : (
-                      <span className="time">{formatTime(record.timeoutAt)}</span>
-                    )
-                  ) : (
+                  {sla.state === 'unknown' ? (
                     '—'
+                  ) : sla.state === 'late' ? (
+                    <span className="overdue">
+                      已逾期（{formatTime(sla.timeoutAt!)}）
+                    </span>
+                  ) : (
+                    <span className="time">{formatTime(sla.timeoutAt!)}</span>
                   )}
                 </td>
                 <td>
@@ -157,7 +165,8 @@ export default function ApprovalList({ initial, refreshMs }: Props) {
                   </a>
                 </td>
               </tr>
-            ))}
+              );
+            })}
           </tbody>
         </table>
       )}
