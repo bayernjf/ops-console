@@ -50,6 +50,20 @@
 3. 退款页接 `GET /api/v1/refunds`（列表）+ 既有 `:id` 详情；内容页接 `GET /api/v1/content` + `:id`（仅 published 投影，pending 待审 listing 不在内）。
 4. 联调基线：zeus 起真实服务时默认策略 v1 已带 slaHours；webhook 订阅经 env 种子或 POST 路由配置；commerce 新端点需与现有只读页字段逐字段对齐。
 
+### 控制台侧接线（2026-10-26 完成）
+四条待办全部落地，只改本仓消费侧。
+- **待办1（late 呈现）**：`src/server/sla.ts` 纯函数 `describeSla(record, now)` 把记录解释为 unknown/ontime/late/timed-out；无 `timeoutAt`（旧 zeus / D0·D1 规则）一律 `unknown` 安全跳过不报错；pending 且 now≥timeoutAt → `late`，列表岛与详情页展示「宽限中·已逾期 X」与 lateAt、宽限已进行时长；`result.outcome==='timed-out'` → 「已超时关闭」。`DecisionRecord` 补 `lateAt?`；出站 poller payload 补 `lateAt?`，timeout 文案改为「进入宽限期 pending-but-late」。
+- **待办2（入站 webhook）**：`src/server/notify/inbound.ts` + `POST /api/inbound/zeus/decision-webhook`（中间件放行，公网 HMAC 鉴权）。对**原始 body 文本**做 HMAC-SHA256 验签（对齐 zeus `signWebhookBody`，前缀 `sha256=`），`crypto.timingSafeEqual` 常量时间比较；缺签名/签名不符 → 401；缺 delivery-id → 400；未配 secret → fail-closed 503；按 `x-zeus-delivery-id` 幂等（JSONL 落盘 + 磁盘回放，重启不重处理，重放回 200 `duplicate:true`）。secret 经 `OPS_DECISION_WEBHOOK_SECRET`，日志 `OPS_DECISION_WEBHOOK_LOG`；`scripts/dev-upstream.sh` 用 `ZEUS_DECISION_WEBHOOK_URL/SECRET` 种子 zeus 指向本端点。
+- **待办3（列表接线）**：commerce client 补 `listRefunds/listContent/getContent`（`{refunds}`/`{content}` 包裹）；`GET /api/refunds`、`GET /api/content`、`GET /api/content/:id`；退款页 SSR 渲染真实退款列表，内容页从事件流派生切到 `GET /api/v1/content` published 投影（pending 待审不在内，不伪造）。
+- **待办4（基线）**：真实 zeus D2 决策现在带 `slaHours:24`/`timeoutAt`；webhook 经 env 种子；refund/content 字段与上游逐字段对齐。
+
+**验证（真实进程 3020/3021/3022）**：
+- `scripts/verify-batch3.sh` **PASS=11 FAIL=0**：真实 zeus→console 签名 `created` 推送落盘；坏签名 401；新签事件 200 accepted；同 delivery-id 重播 200 duplicate；refunds/content 列表形状与页面 200。
+- `scripts/verify-batch2.sh` **PASS=21 FAIL=0**（受控写回归，且产生真实退款/内容行）。
+- 逐字段核对：refund 行 `{id,orderId,lines[{orderItemId,qty,amount}],reason,status,decisionId?,externalRefundRef?,createdAt,decidedAt?}`；content 行 `{id,productId,channel,externalProductId,decisionId?,listedAt}`。
+- 契约级 Vitest `npx vitest run` **53/53**（新增 sla-state 7、inbound webhook 2、commerce lists 4）；`npx astro check` **0 error**；`npx eslint .` **0**；`npm run build** 成功。
+- 密钥边界：`dist/client/` 对 `local-zeus-token/local-commerce-token/local-decision-webhook-secret` **零命中**。
+
 ## 验证方式（真实服务 vs mock，逐项写明）
 - T-M8-05 真实链路：`scripts/verify-notify.sh`（zeus:3020 + console:3022 + receiver:3023 真实进程）。实测结果：新建真实 D2（dec_…bmey）约 5.0s 收到 pending 卡片、真实 D3（dec_…e5nz）约 0.5s 收到；额外 12s 跨多轮轮询后各自仍为 1 条（幂等）；登录态 GET 深链接 `/app/approvals/:id` 返回 200。
 - 契约级 mock（Vitest，node:http 假 zeus + 假接收端 + 注入时钟/注入 sleep，无真实等待）：`tests/notify.test.ts` 7 例全绿——D2 pending 一次投递、多轮轮询幂等、JSONL 落盘后"重启"不重投、过 timeoutAt→timeout、再经 escalationMinutes→escalation、通道 500/拒连→退避重试并落 channel_failure、D1 不发通知、深链接形状 `/app/approvals/:id`、**轮询重入守卫**（通道长时间不可达、deliver 阻塞完整退避窗口时，重叠 tick 不并发重投，pending 与 channel_failure 各仅 1 条）。
