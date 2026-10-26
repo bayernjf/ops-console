@@ -25,6 +25,7 @@ export interface WebhookPayload {
   status: string;
   createdAt?: string;
   timeoutAt?: string;
+  lateAt?: string;
   deepLink: string;
   message: string;
 }

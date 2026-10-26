@@ -50,6 +50,12 @@ export interface Config {
     escalationMinutes: number;
     storeFile: string;
   };
+  inbound: {
+    /** Shared HMAC secret for zeus -> console decision webhook. Empty disables. */
+    decisionWebhookSecret: string;
+    /** Durable log of accepted inbound decision events. */
+    decisionWebhookLogFile: string;
+  };
 }
 
 let cached: Config | null = null;
@@ -93,6 +99,10 @@ export function loadConfig(): Config {
       listRefreshMs: intEnv('OPS_NOTIFY_LIST_REFRESH_MS', 20000),
       escalationMinutes: intEnv('OPS_NOTIFY_ESCALATION_MINUTES', 15),
       storeFile: required('OPS_NOTIFY_STORE_FILE', './data/notify-deliveries.jsonl'),
+    },
+    inbound: {
+      decisionWebhookSecret: required('OPS_DECISION_WEBHOOK_SECRET', ''),
+      decisionWebhookLogFile: required('OPS_DECISION_WEBHOOK_LOG', './data/inbound-decision-events.jsonl'),
     },
   };
   cached = cfg;

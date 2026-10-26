@@ -52,7 +52,7 @@ function messageFor(decision: DecisionRecord, event: NotifyEvent, escalationMinu
         decision.timeoutAt ? `，SLA 超时时间 ${decision.timeoutAt}` : ''
       }。请打开审批工作台处理。`;
     case 'timeout':
-      return `${base} 已超过 SLA（${decision.timeoutAt ?? '未知'}）仍未审批，请立即处理。`;
+      return `${base} 已超过 SLA（${decision.timeoutAt ?? '未知'}），进入宽限期（pending-but-late），仍可审批，请立即处理。`;
     case 'escalation':
       return `${base} 超时已超过 ${escalationMinutes} 分钟未处理（超时于 ${decision.timeoutAt ?? '未知'}），请升级关注。`;
     case 'channel_failure':
@@ -76,6 +76,7 @@ function buildPayload(
     status: decision.status,
     ...(decision.createdAt ? { createdAt: decision.createdAt } : {}),
     ...(decision.timeoutAt ? { timeoutAt: decision.timeoutAt } : {}),
+    ...(decision.lateAt ? { lateAt: decision.lateAt } : {}),
     deepLink: deepLinkOf(deps.publicBaseUrl, decision.id),
     message: messageFor(decision, event, deps.escalationMinutes),
   };

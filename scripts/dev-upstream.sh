@@ -62,6 +62,8 @@ case "${1:-start}" in
       ZEUS_PORT="$ZEUS_PORT" ZEUS_HOST=127.0.0.1 \
       ZEUS_INTERNAL_TOKEN="$ZEUS_TOKEN" \
       ZEUS_DB_FILE="$DATA_DIR/zeus.db" \
+      ZEUS_DECISION_WEBHOOK_URL="http://127.0.0.1:3022/api/inbound/zeus/decision-webhook" \
+      ZEUS_DECISION_WEBHOOK_SECRET="${OPS_DECISION_WEBHOOK_SECRET:-local-decision-webhook-secret-change-me}" \
       node dist/http/serve.js >> "$DATA_DIR/zeus.log" 2>&1 &
       echo $! > "$zeus_pid_file"
     )

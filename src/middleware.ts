@@ -4,7 +4,7 @@ import { parseSessionCookie, verifySessionToken } from './server/session.js';
 import { startNotifyScheduler } from './server/notify/index.js';
 
 const PUBLIC_PATHS = new Set(['/login', '/healthz']);
-const PUBLIC_API_PREFIXES = ['/api/auth/login'];
+const PUBLIC_API_PREFIXES = ['/api/auth/login', '/api/inbound/zeus/decision-webhook'];
 
 function isPublic(pathname: string): boolean {
   if (PUBLIC_PATHS.has(pathname)) return true;
