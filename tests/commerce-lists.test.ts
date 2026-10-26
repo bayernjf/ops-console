@@ -95,7 +95,8 @@ describe('commerce list wiring', () => {
       status: 'awaiting_approval',
       decisionId: 'dec_ref_1',
     });
-    expect(body.refunds[0]!.lines[0]).toMatchObject({ orderItemId: 'li_1', qty: 1, amount: 1299 });
+    const lines = (body.refunds[0]!.lines as Array<{ orderItemId: string; qty: number; amount: number }>);
+    expect(lines[0]).toMatchObject({ orderItemId: 'li_1', qty: 1, amount: 1299 });
     expect(body.refunds[1]!.status).toBe('succeeded');
     expect(body.refunds[1]!.externalRefundRef).toBe('ch_ref_99');
     expect(body.refunds[1]!.decidedAt).toBe('2026-10-25T09:05:00.000Z');
