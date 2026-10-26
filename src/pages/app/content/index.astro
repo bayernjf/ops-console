@@ -4,39 +4,51 @@ import { getContext } from '../../../server/context.js';
 import { getDashboardMetrics } from '../../../server/dashboard-service.js';
 
 const session = Astro.locals.session!;
-let events: any[] = [];
+
+let content: any[] = [];
 let published = 0;
 let loadError = '';
 try {
   const ctx = getContext();
-  [events, published] = await Promise.all([
-    ctx.commerce.events({ eventType: 'product.listed' }).then((r) => r.events as any[]),
+  [content, published] = await Promise.all([
+    ctx.commerce.listContent().then((r) => r.content as any[]),
     getDashboardMetrics(ctx).then((m) => m.content.published),
   ]);
 } catch (thrown) {
   loadError = thrown instanceof Error ? thrown.message : String(thrown);
+}
+
+function fmt(iso?: string): string {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? iso : d.toLocaleString('zh-CN', { hour12: false });
 }
 ---
 <ConsoleLayout title="内容" session={session}>
   {loadError ? <div class="panel panel--error"><p>上游不可达：{loadError}</p></div> : null}
 
   <p class="hint gap-note">
-    说明：commerce 没有独立的内容列表 GET 端点（已登记内核缺口）。本页以事件流
-    <code>product.listed</code> + 经营视图 published 口径只读派生。
+    说明：本页读取 commerce 只读投影 <code>GET /api/v1/content</code>（product.listed 事件）。
+    仅含<b>已发布</b>内容；待审（pending/awaiting_approval）上架不在列表内，待办以 zeus 审批工作台为准。
   </p>
 
   <div class="panel">
-    <h3>已发布内容（dashboard published = {published}）</h3>
-    {events.length === 0 ? <p class="hint">暂无已发布内容。</p> : (
+    <h3>已发布内容（dashboard published = {published}，列表 {content.length} 条）</h3>
+    {content.length === 0 ? <p class="hint">暂无已发布内容。</p> : (
       <table class="data-table">
-        <thead><tr><th>时间</th><th>类型</th><th>对象</th><th>详情</th></tr></thead>
+        <thead><tr>
+          <th>内容 ID</th><th>商品 SPU</th><th>渠道</th><th>渠道商品</th>
+          <th>决策</th><th>发布时间</th>
+        </tr></thead>
         <tbody>
-          {events.slice(0, 50).map((e: any) => (
+          {content.map((c: any) => (
             <tr>
-              <td class="mono">{e.at ?? e.createdAt ?? '—'}</td>
-              <td>{e.type}</td>
-              <td class="mono">{e.refType}/{e.refId}</td>
-              <td class="mono">{JSON.stringify(e.payload ?? {})}</td>
+              <td class="mono">{c.id}</td>
+              <td class="mono">{c.productId}</td>
+              <td>{c.channel}</td>
+              <td class="mono">{c.externalProductId}</td>
+              <td class="mono">{c.decisionId ?? '—'}</td>
+              <td class="mono">{fmt(c.listedAt)}</td>
             </tr>
           ))}
         </tbody>

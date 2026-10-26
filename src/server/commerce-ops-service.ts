@@ -148,6 +148,10 @@ export async function importOrders(
 
 // ---- Refunds (D2 settle: owner and operator both allowed) ----------------
 
+export function listRefunds(ctx: ServerContext) {
+  return ctx.commerce.listRefunds();
+}
+
 export function getRefund(ctx: ServerContext, id: string) {
   return ctx.commerce.getRefund(id);
 }
@@ -191,6 +195,18 @@ export async function decideRefund(
     approver: session.username,
     ...(input.comment ? { comment: input.comment } : {}),
   });
+}
+
+// ---- Content (published read projection) ----------------------------------
+
+export function listContent(ctx: ServerContext) {
+  // Published listing projection only; pending/awaiting_approval listings are
+  // NOT included by commerce — we surface exactly what the upstream returns.
+  return ctx.commerce.listContent();
+}
+
+export function getContent(ctx: ServerContext, id: string) {
+  return ctx.commerce.getContent(id);
 }
 
 // ---- Inventory -------------------------------------------------------------

@@ -73,6 +73,9 @@ export class CommerceUpstream {
   }
 
   // ---- Refunds -----------------------------------------------------------
+  listRefunds(): Promise<{ refunds: CommerceRow[] }> {
+    return this.get('/api/v1/refunds');
+  }
   getRefund(id: string): Promise<{ refund: CommerceRow }> {
     return this.get(`/api/v1/refunds/${encodeURIComponent(id)}`);
   }
@@ -102,6 +105,14 @@ export class CommerceUpstream {
   }
   rejectListing(decisionId: string, body: { approver: string; comment?: string }): Promise<{ result: unknown }> {
     return this.post(`/api/v1/listings/${encodeURIComponent(decisionId)}/reject`, body);
+  }
+
+  // ---- Content (published projection only) --------------------------------
+  listContent(): Promise<{ content: CommerceRow[] }> {
+    return this.get('/api/v1/content');
+  }
+  getContent(id: string): Promise<{ content: CommerceRow }> {
+    return this.get(`/api/v1/content/${encodeURIComponent(id)}`);
   }
 
   // ---- Channel accounts --------------------------------------------------
