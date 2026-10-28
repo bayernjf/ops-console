@@ -2,6 +2,11 @@
 
 > 规则：完成项及时登记；缺口分"内核缺口（需回到 zeus/commerce 做）"与"外部验收项"。
 
+## 2026-10-28 storefront 接线（SF-14，commerce-os M1 收口）
+
+- 运营台直读 commerce 只读端点，**storefront 数据零改动入台**：真实 zeus 3020 + commerce 3021 + console 3022 三进程验证——storefront 订单（`ord_sf-cart_…`，渠道标记 storefront）、退款（`rfd_sf-cart_…` → succeeded）、库存（SKU-SF14）在对应页面可见；内容页（`GET /api/v1/content` 投影）与看板（订单/净额）正常渲染。owner 登录（OPS_AUTH_MODE=local 默认账号）验证通过。
+- 接线路径：`src/server/upstream/commerce.ts`（listOrders/listRefunds/listInventory/listContent/dashboard）+ `src/pages/app/{orders,refunds,inventory,content,dashboard}/index.astro`。
+
 ## 2026-10-24 方向决策（owner 拍板，覆盖原 hint 的 React SPA 形态）
 - 形态：**单进程 Astro 7 SSR（node adapter）+ React 19 交互岛**，不做 server+web 双进程、不做独立 SPA；一个进程一个部署单元。
 - 审批唯一写入口在控制台；IM 通知只做**卡片 + 深链接**，不做 IM 内批/驳（无 IM 回调/动作令牌/平台验签），留二期。
