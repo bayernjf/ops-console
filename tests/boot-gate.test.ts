@@ -56,6 +56,7 @@ describe('boot gate (predev/prestart verify-required-env)', () => {
   it('exits 0 with the required-env confirmation when every secret is present', async () => {
     const { code, stderr } = await runGate(SECRET_VALUES);
     expect(code).toBe(0);
+    expect(stderr).toContain('auth posture: fail-closed');
     expect(stderr).toContain('required env OK');
   }, 15000);
 
