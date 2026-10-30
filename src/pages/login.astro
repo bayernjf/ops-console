@@ -29,7 +29,11 @@ const next = Astro.url.searchParams.get('next') ?? '/app/approvals';
       </form>
     </div>
     <script>
-      const next = new URLSearchParams(window.location.search).get('next') ?? '/app/approvals';
+      import { safeNextOr } from '../lib/safe-next';
+      // OC-3: `next` is only honored when it is a same-origin relative path;
+      // anything else (absolute URL, "//host", "/\host") falls back to the
+      // default console page instead of becoming an open redirect.
+      const next = safeNextOr(new URLSearchParams(window.location.search).get('next'), '/app/approvals');
       const form = document.getElementById('login-form') as HTMLFormElement;
       const errorEl = document.getElementById('login-error') as HTMLDivElement;
       form.addEventListener('submit', async (event) => {
