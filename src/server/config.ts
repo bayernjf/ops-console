@@ -11,6 +11,21 @@ function required(name: string, fallback: string): string {
   return value && value.length > 0 ? value : fallback;
 }
 
+/**
+ * Secrets must never fall back to a hardcoded default: if the variable is
+ * missing the process fails to start with a clear, actionable error.
+ */
+function requiredSecret(name: string): string {
+  const value = process.env[name];
+  if (value === undefined || value.length === 0) {
+    throw new Error(
+      `Missing required secret env ${name}: refusing to start with an insecure default. ` +
+        `Set it via the environment (see .env.example).`,
+    );
+  }
+  return value;
+}
+
 function intEnv(name: string, fallback: number): number {
   const raw = process.env[name];
   if (raw === undefined || raw === '') return fallback;
@@ -69,27 +84,27 @@ export function loadConfig(): Config {
   const cfg: Config = {
     host: required('OPS_HOST', '127.0.0.1'),
     port: intEnv('OPS_PORT', 3022),
-    sessionSecret: required('OPS_SESSION_SECRET', 'dev-only-change-me'),
+    sessionSecret: requiredSecret('OPS_SESSION_SECRET'),
     authMode,
     accounts: {
       owner: {
         username: required('OPS_OWNER_USERNAME', 'owner'),
-        password: required('OPS_OWNER_PASSWORD', 'owner-change-me'),
+        password: requiredSecret('OPS_OWNER_PASSWORD'),
         role: 'owner',
       },
       operator: {
         username: required('OPS_OPERATOR_USERNAME', 'operator'),
-        password: required('OPS_OPERATOR_PASSWORD', 'operator-change-me'),
+        password: requiredSecret('OPS_OPERATOR_PASSWORD'),
         role: 'operator',
       },
     },
     zeus: {
       baseUrl: required('ZEUS_BASE_URL', 'http://127.0.0.1:3020'),
-      token: required('ZEUS_INTERNAL_TOKEN', 'local-zeus-token'),
+      token: requiredSecret('ZEUS_INTERNAL_TOKEN'),
     },
     commerce: {
       baseUrl: required('COMMERCE_BASE_URL', 'http://127.0.0.1:3021'),
-      token: required('COMMERCE_API_TOKEN', 'local-commerce-token'),
+      token: requiredSecret('COMMERCE_API_TOKEN'),
     },
     publicBaseUrl: required('OPS_PUBLIC_BASE_URL', 'http://127.0.0.1:3022'),
     notify: {

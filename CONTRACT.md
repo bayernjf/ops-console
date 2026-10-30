@@ -19,6 +19,9 @@
 
 - 不建用户表、不做注册。本地模式（`OPS_AUTH_MODE=local`）两个固定角色账号来自环境变量：
   - owner：`OPS_OWNER_USERNAME` / `OPS_OWNER_PASSWORD`；operator：`OPS_OPERATOR_USERNAME` / `OPS_OPERATOR_PASSWORD`。
+  - **fail-closed**：`OPS_SESSION_SECRET`、两个角色密码、`ZEUS_INTERNAL_TOKEN`、
+    `COMMERCE_API_TOKEN` 为必填；缺失时 `predev`/`prestart` 门禁与 `loadConfig()`
+    直接报错退出，不存在内置弱默认值（见 `src/server/config.ts` 的 `requiredSecret`）。
   - 登录成功下发 `HttpOnly; SameSite=Strict; Path=/`（https 下 `Secure`）的 **HMAC 签名会话 cookie**（`src/server/session.ts`）；浏览器 JS 读不到会话内容，身份只通过 `GET /api/auth/me` 展示。
 - 生产预留（**本期只留缝、不实现、失败即拒**，在 README/handoff 写明）：`OPS_AUTH_MODE=cf` 信任 Cloudflare Access 受保护头；`oidc` 为 VPS 兜底 GitHub OIDC。
 - 中间件 `src/middleware.ts`：除 `/login`、`/healthz`、`POST /api/auth/login` 外，未登录访问：

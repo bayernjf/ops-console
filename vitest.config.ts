@@ -7,6 +7,7 @@ export default defineConfig({
   esbuild: { jsx: 'automatic' },
   test: {
     include: ['tests/**/*.test.ts', 'tests/**/*.test.tsx'],
+    setupFiles: ['tests/setup-env.ts'],
     testTimeout: 30000,
     pool: 'threads',
   },

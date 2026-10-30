@@ -31,6 +31,8 @@ npm run dev                   # SSR 控制台(3022)，打开 http://127.0.0.1:30
 npm run dev:receiver          # 通知本地验收：假 webhook 接收端(3023)
 ```
 用 `.env` 中的 owner / operator 账号登录（本地默认密码 owner-change-me / operator-change-me）。
+`OPS_SESSION_SECRET`、两个角色密码、`ZEUS_INTERNAL_TOKEN`、`COMMERCE_API_TOKEN` 为必填：
+缺失时启动门禁（`predev`/`prestart`）直接报错退出，不会带弱默认值启动。
 
 ## 测试 / 构建
 ```bash
