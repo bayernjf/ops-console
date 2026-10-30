@@ -2,6 +2,29 @@
 
 > 规则：完成项及时登记；缺口分"内核缺口（需回到 zeus/commerce 做）"与"外部验收项"。
 
+## 2026-10-31 Tier0 评审 H1 收尾（启动姿态日志）
+
+- ✅ 评审建议"启动日志打印授权姿态"落地：SSR boot（`src/middleware.ts` 模块加载，config
+  解析成功后）与 `predev`/`prestart` 门禁（`scripts/verify-required-env.ts`）各打一行
+  `[ops-console] auth posture: fail-closed (secrets required from env; no insecure defaults)`。
+- **不加 `OPS_INSECURE_DEV` 开关**：加开关需在源码重新引入硬编码 dev 默认密钥路径（正是
+  H1 点名的模式），且该变量误入生产 env 即重现漏洞；本地开发便利由 gitignored `.env`
+  占位值承载，秘密一律显式提供，缺配置即 exit 1。
+- 测试：新增 `tests/boot-gate.test.ts` 3 例，真实子进程跑门禁脚本——无秘密 exit 1 并指名
+  变量、单秘密为空 exit 1、全量存在 exit 0 且输出含姿态行。
+
+## 2026-10-30 Tier0 评审 P1 核实（配置 fail-closed）
+
+- ✅ **配置 fail-closed 已闭环**（提交 `2426fc9 fix(config): fail closed on missing secret env`，经 PR #2 合入 dev）：
+  源码无任何硬编码默认口令/会话密钥（`.env.example` 仅保留占位），`OPS_SESSION_SECRET`、
+  `OPS_OWNER_PASSWORD`、`OPS_OPERATOR_PASSWORD`、`ZEUS_INTERNAL_TOKEN`、`COMMERCE_API_TOKEN`
+  统一走 `requiredSecret()`，缺失或为空即抛错拒绝启动。
+- 测试：`tests/config.test.ts` 12 例覆盖“全部存在可加载 / 每个密钥缺失或为空拒绝启动”，本地实测全绿。
+- 说明：非敏感项（用户名 `owner`/`operator`、host、端口、base URL）保留默认值，符合“仅秘密禁止默认”的设计。
+- 原待办两项已在 PR #3 闭环：登录限流（`10c147a feat(auth): throttle login attempts per peer`，
+  测试 `650533f test(auth): cover the login throttle`）；SLA 调度器改在 boot 启动
+  （`40a6f62 fix(notify): start the SLA scheduler at boot`，middleware 模块加载即启动，不再依赖首个请求）。
+
 ## 2026-10-28 storefront 接线（SF-14，commerce-os M1 收口）
 
 - 运营台直读 commerce 只读端点，**storefront 数据零改动入台**：真实 zeus 3020 + commerce 3021 + console 3022 三进程验证——storefront 订单（`ord_sf-cart_…`，渠道标记 storefront）、退款（`rfd_sf-cart_…` → succeeded）、库存（SKU-SF14）在对应页面可见；内容页（`GET /api/v1/content` 投影）与看板（订单/净额）正常渲染。owner 登录（OPS_AUTH_MODE=local 默认账号）验证通过。

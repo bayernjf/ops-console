@@ -22,7 +22,15 @@ function json401(): Response {
 // cannot wait for the first authenticated request. Astro imports this module at
 // server boot, and startNotifyScheduler is idempotent, so starting it here runs
 // it once per process regardless of traffic.
-startNotifyScheduler(getContext());
+// Review H1 follow-up: state the auth posture explicitly at boot. getContext()
+// resolves the config here, so a missing secret still aborts the boot before
+// this line; the log line tells the operator the process never runs on
+// insecure defaults.
+const bootContext = getContext();
+console.error(
+  '[ops-console] auth posture: fail-closed (secrets required from env; no insecure defaults)',
+);
+startNotifyScheduler(bootContext);
 
 export const onRequest = defineMiddleware(async (ctx, next) => {
   const { pathname } = ctx.url;

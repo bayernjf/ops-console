@@ -11,4 +11,7 @@ try {
   console.error(`[ops-console] refusing to start: ${err instanceof Error ? err.message : String(err)}`);
   process.exit(1);
 }
+console.error(
+  '[ops-console] auth posture: fail-closed (secrets required from env; no insecure defaults)',
+);
 console.error('[ops-console] required env OK');
