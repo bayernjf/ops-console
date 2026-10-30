@@ -18,6 +18,12 @@ function json401(): Response {
   );
 }
 
+// SLA escalation must run even when nobody opens the console, so the scheduler
+// cannot wait for the first authenticated request. Astro imports this module at
+// server boot, and startNotifyScheduler is idempotent, so starting it here runs
+// it once per process regardless of traffic.
+startNotifyScheduler(getContext());
+
 export const onRequest = defineMiddleware(async (ctx, next) => {
   const { pathname } = ctx.url;
 
@@ -26,8 +32,6 @@ export const onRequest = defineMiddleware(async (ctx, next) => {
   }
 
   const ctxServer = getContext();
-  // Start the notification poller once per process (no-op seam until notify lands).
-  startNotifyScheduler(ctxServer);
 
   const raw = parseSessionCookie(ctx.request.headers.get('Cookie'));
   const session = raw ? verifySessionToken(raw, ctxServer.config.sessionSecret) : null;
