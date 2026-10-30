@@ -7,8 +7,10 @@
     "node": ">=22.12.0"
   },
   "scripts": {
-    "dev": "astro dev --host 127.0.0.1 --port 3022",
-    "start": "node --experimental-sqlite dist/server/entry.mjs",
+    "predev": "node --experimental-strip-types --env-file-if-exists=.env scripts/verify-required-env.ts",
+    "dev": "node --env-file-if-exists=.env node_modules/astro/bin/astro.mjs dev --host 127.0.0.1 --port 3022",
+    "prestart": "node --experimental-strip-types --env-file-if-exists=.env scripts/verify-required-env.ts",
+    "start": "node --experimental-sqlite --env-file-if-exists=.env dist/server/entry.mjs",
     "build": "astro build",
     "check": "astro check",
     "typecheck": "astro check",
