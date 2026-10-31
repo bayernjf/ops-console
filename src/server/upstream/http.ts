@@ -53,8 +53,12 @@ export async function callJson<T>(
     };
     response = await fetch(url, init);
   } catch (thrown) {
-    const cause = thrown instanceof Error ? thrown.message : String(thrown);
-    throw new UpstreamError(503, 'UPSTREAM_UNAVAILABLE', `upstream ${baseUrl} unreachable: ${cause}`);
+    // The internal base URL and the transport cause stay in the server log
+    // only (Tier0 review 2026-10-30 H2): the client-facing message is fixed
+    // and generic, so the console never discloses where its upstreams live.
+    const cause = thrown instanceof Error ? (thrown.stack ?? thrown.message) : String(thrown);
+    console.error(`[ops-console] upstream ${url.toString()} unreachable: ${cause}`);
+    throw new UpstreamError(503, 'UPSTREAM_UNAVAILABLE', 'upstream unavailable');
   }
   const text = await response.text();
   const parsed: unknown = text ? (JSON.parse(text) as unknown) : undefined;
