@@ -28,7 +28,7 @@ try {
     <h3>订单列表（commerce 透传）</h3>
     {orders.length === 0 ? <p class="hint">暂无订单，先通过上方拉单从渠道同步。</p> : (
       <table class="data-table">
-        <thead><tr><th>ID</th><th>渠道</th><th>外部单号</th><th>状态</th><th>金额</th><th>创建</th><th>详情</th></tr></thead>
+        <thead><tr><th scope="col">ID</th><th scope="col">渠道</th><th scope="col">外部单号</th><th scope="col">状态</th><th scope="col">金额</th><th scope="col">创建</th><th scope="col">详情</th></tr></thead>
         <tbody>
           {orders.map((o: any) => (
             <tr>

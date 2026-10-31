@@ -29,7 +29,7 @@ const skus = products.flatMap((p: any) => (p.skus ?? []).map((s: any) => ({ id: 
     <h3>库存列表（commerce 透传）</h3>
     {inventory.length === 0 ? <p class="hint">暂无库存记录。</p> : (
       <table class="data-table">
-        <thead><tr><th>SKU ID</th><th>可用数量</th><th>更新时间</th></tr></thead>
+        <thead><tr><th scope="col">SKU ID</th><th scope="col">可用数量</th><th scope="col">更新时间</th></tr></thead>
         <tbody>
           {inventory.map((r: any) => (
             <tr><td class="mono">{r.skuId}</td><td>{r.qtyAvailable}</td><td class="mono">{r.updatedAt}</td></tr>

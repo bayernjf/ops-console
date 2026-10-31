@@ -100,7 +100,9 @@ export default function PolicyThresholds({ policy, role }: Props) {
           {busy ? '提交中…' : '保存阈值（owner）'}
         </button>
       </div>
-      {message ? <p className={failed ? 'action-failed' : 'action-ok'}>{message}</p> : null}
+      {message ? (
+        <p className={failed ? 'action-failed' : 'action-ok'} role={failed ? 'alert' : 'status'}>{message}</p>
+      ) : null}
     </div>
   );
 }

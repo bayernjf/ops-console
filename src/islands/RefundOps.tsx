@@ -102,7 +102,7 @@ export default function RefundOps() {
           )}
         </div>
       ) : null}
-      {msg ? <p className={msg.includes('失败') ? 'action-failed' : 'action-ok'}>{msg}</p> : null}
+      {msg ? <p className={msg.includes('失败') ? 'action-failed' : 'action-ok'} role={msg.includes('失败') ? 'alert' : 'status'}>{msg}</p> : null}
     </section>
   );
 }

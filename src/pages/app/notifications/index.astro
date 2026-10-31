@@ -38,7 +38,7 @@ const deliveries = listDeliveries().slice(0, 100);
         <div class="actions">
           <button type="submit" class="btn">保存配置</button>
           <button type="button" id="notify-test-btn" class="btn btn--ghost">发一条测试</button>
-          <span id="notify-form-msg" class="msg"></span>
+          <span id="notify-form-msg" class="msg" aria-live="polite"></span>
         </div>
       </form>
     )}
@@ -54,8 +54,8 @@ const deliveries = listDeliveries().slice(0, 100);
         <table>
           <thead>
             <tr>
-              <th>decisionId</th><th>级别</th><th>事件</th><th>状态</th>
-              <th>次数</th><th>HTTP</th><th>最后尝试</th><th>错误</th><th>深链接</th>
+              <th scope="col">decisionId</th><th scope="col">级别</th><th scope="col">事件</th><th scope="col">状态</th>
+              <th scope="col">次数</th><th scope="col">HTTP</th><th scope="col">最后尝试</th><th scope="col">错误</th><th scope="col">深链接</th>
             </tr>
           </thead>
           <tbody>

@@ -24,7 +24,7 @@ const currentPath = Astro.url.pathname;
           <span class="brand-mark">◆</span>
           <span class="brand-text">ops-console</span>
         </div>
-        <nav>
+        <nav aria-label="主导航">
           {NAV_ITEMS.map((item) => (
             <a
               class:list={['nav-item', { active: currentPath.startsWith(item.href) }]}

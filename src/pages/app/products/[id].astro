@@ -27,7 +27,7 @@ try {
       </dl>
       <h3>SKU</h3>
       <table class="data-table">
-        <thead><tr><th>SKU ID</th><th>编码</th><th>规格</th><th>价格</th><th>状态</th></tr></thead>
+        <thead><tr><th scope="col">SKU ID</th><th scope="col">编码</th><th scope="col">规格</th><th scope="col">价格</th><th scope="col">状态</th></tr></thead>
         <tbody>
           {(product.skus ?? []).map((s: any) => (
             <tr><td>{s.id}</td><td>{s.skuCode}</td><td>{JSON.stringify(s.specs ?? {})}</td><td>{s.price} {s.currency}</td><td>{s.status}</td></tr>

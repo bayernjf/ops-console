@@ -102,14 +102,14 @@ const sla = decision ? describeSla(decision, Date.now()) : null;
       <div class="panel">
         <h3>证据 / replay</h3>
         <p class="hint">
-          <a href={`/api/approvals/${decision.id}/replay?format=json`} target="_blank">replay JSON</a>
+          <a href={`/api/approvals/${decision.id}/replay?format=json`} target="_blank" rel="noreferrer">replay JSON</a>
           {' · '}
-          <a href={`/api/approvals/${decision.id}/replay?format=text`} target="_blank">replay 文本</a>
+          <a href={`/api/approvals/${decision.id}/replay?format=text`} target="_blank" rel="noreferrer">replay 文本</a>
           （透传 zeus 审计事件链）
         </p>
         {decision.approvals.length > 0 ? (
           <table class="approval-history">
-            <thead><tr><th>审批人</th><th>结论</th><th>备注</th><th>时间</th></tr></thead>
+            <thead><tr><th scope="col">审批人</th><th scope="col">结论</th><th scope="col">备注</th><th scope="col">时间</th></tr></thead>
             <tbody>
               {decision.approvals.map((a) => (
                 <tr><td>{a.approver}</td><td>{a.verdict}</td><td>{a.comment ?? '—'}</td><td>{fmt(a.at)}</td></tr>

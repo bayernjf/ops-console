@@ -46,7 +46,7 @@ export default function InventoryOps({ skus }: { skus: SkuOption[] }) {
       <button className="btn btn--primary" disabled={busy || !confirm || !skuId} onClick={() => void apply()}>
         {busy ? '提交中…' : '应用调整'}
       </button>
-      {msg ? <p className={msg.includes('失败') ? 'action-failed' : 'action-ok'}>{msg}</p> : null}
+      {msg ? <p className={msg.includes('失败') ? 'action-failed' : 'action-ok'} role={msg.includes('失败') ? 'alert' : 'status'}>{msg}</p> : null}
     </section>
   );
 }

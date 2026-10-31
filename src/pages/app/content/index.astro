@@ -37,8 +37,8 @@ function fmt(iso?: string): string {
     {content.length === 0 ? <p class="hint">暂无已发布内容。</p> : (
       <table class="data-table">
         <thead><tr>
-          <th>内容 ID</th><th>商品 SPU</th><th>渠道</th><th>渠道商品</th>
-          <th>决策</th><th>发布时间</th>
+          <th scope="col">内容 ID</th><th scope="col">商品 SPU</th><th scope="col">渠道</th><th scope="col">渠道商品</th>
+          <th scope="col">决策</th><th scope="col">发布时间</th>
         </tr></thead>
         <tbody>
           {content.map((c: any) => (

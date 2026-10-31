@@ -103,7 +103,9 @@ export default function ApprovalActions({ decision, role }: Props) {
           {busy === 'reject' ? '提交中…' : '驳回'}
         </button>
       </div>
-      {message ? <p className={failed ? 'action-failed' : 'action-ok'}>{message}</p> : null}
+      {message ? (
+        <p className={failed ? 'action-failed' : 'action-ok'} role={failed ? 'alert' : 'status'}>{message}</p>
+      ) : null}
     </div>
   );
 }
