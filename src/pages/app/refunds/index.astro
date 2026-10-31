@@ -30,8 +30,8 @@ function fmt(iso?: string): string {
     {refunds.length === 0 ? <p class="hint">暂无退款单。</p> : (
       <table class="data-table">
         <thead><tr>
-          <th>退款单</th><th>订单</th><th>原因</th><th>状态</th>
-          <th>决策</th><th>渠道退款</th><th>创建</th><th>决定</th>
+          <th scope="col">退款单</th><th scope="col">订单</th><th scope="col">原因</th><th scope="col">状态</th>
+          <th scope="col">决策</th><th scope="col">渠道退款</th><th scope="col">创建</th><th scope="col">决定</th>
         </tr></thead>
         <tbody>
           {refunds.map((r: any) => (

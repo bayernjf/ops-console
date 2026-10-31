@@ -97,23 +97,23 @@ export default function ApprovalList({ initial, refreshMs }: Props) {
         <button className="btn btn--primary" onClick={() => void refresh()} disabled={loading}>
           {loading ? '刷新中…' : '手动刷新'}
         </button>
-        <span className="list-meta">每 20s 自动刷新 · 共 {visible.length} 条</span>
+        <span className="list-meta" aria-live="polite">每 20s 自动刷新 · 共 {visible.length} 条</span>
       </div>
-      {error ? <p className="list-error">加载失败：{error}（上游不可达时 fail-closed）</p> : null}
+      {error ? <p className="list-error" role="alert">加载失败：{error}（上游不可达时 fail-closed）</p> : null}
       {visible.length === 0 && !error ? (
-        <p className="list-empty">暂无待审批决策（D1 awaiting_approval / D2·D3 blocked）。</p>
+        <p className="list-empty" role="status">暂无待审批决策（D1 awaiting_approval / D2·D3 blocked）。</p>
       ) : (
         <table className="approval-table">
           <thead>
             <tr>
-              <th>级别</th>
-              <th>快照 intent / domain</th>
-              <th>金额</th>
-              <th>命中规则</th>
-              <th>状态</th>
-              <th>创建时间</th>
-              <th>超时</th>
-              <th>证据</th>
+              <th scope="col">级别</th>
+              <th scope="col">快照 intent / domain</th>
+              <th scope="col">金额</th>
+              <th scope="col">命中规则</th>
+              <th scope="col">状态</th>
+              <th scope="col">创建时间</th>
+              <th scope="col">超时</th>
+              <th scope="col">证据</th>
             </tr>
           </thead>
           <tbody>

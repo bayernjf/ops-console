@@ -145,7 +145,7 @@ export default function ProductOps({ products, accounts, role }: Props) {
         <button className="btn btn--primary" disabled={busy || !title || !skuCode} onClick={() => void createProduct()}>
           创建商品
         </button>
-        {createMsg ? <p className={createFail ? 'action-failed' : 'action-ok'}>{createMsg}</p> : null}
+        {createMsg ? <p className={createFail ? 'action-failed' : 'action-ok'} role={createFail ? 'alert' : 'status'}>{createMsg}</p> : null}
       </section>
 
       <section className="panel ops-box">
@@ -163,7 +163,7 @@ export default function ProductOps({ products, accounts, role }: Props) {
         <button className="btn btn--primary" disabled={busy || !prodId} onClick={() => void submitListing()}>
           提交上架
         </button>
-        {submitMsg ? <p className={submitMsg.includes('失败') ? 'action-failed' : 'action-ok'}>{submitMsg}</p> : null}
+        {submitMsg ? <p className={submitMsg.includes('失败') ? 'action-failed' : 'action-ok'} role={submitMsg.includes('失败') ? 'alert' : 'status'}>{submitMsg}</p> : null}
         {submission && submission.status === 'awaiting_approval' ? (
           <div className="settle-row">
             <p className="lock-note">

@@ -43,7 +43,7 @@ export default function OrdersOps({ accounts }: { accounts: AccountRow[] }) {
       <button className="btn btn--primary" disabled={busy || !accountId} onClick={() => void pull()}>
         {busy ? '拉取中…' : '立即拉单'}
       </button>
-      {msg ? <p className={msg.includes('失败') ? 'action-failed' : 'action-ok'}>{msg}</p> : null}
+      {msg ? <p className={msg.includes('失败') ? 'action-failed' : 'action-ok'} role={msg.includes('失败') ? 'alert' : 'status'}>{msg}</p> : null}
     </section>
   );
 }
