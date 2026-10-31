@@ -98,3 +98,102 @@ export interface DashboardMetrics {
 export interface UpstreamErrorBody {
   error: { code: string; message: string; retryable?: boolean };
 }
+
+/**
+ * TracePort v1 span model (bayjf zeus-core-TracePort规范v1 §2/§5), mirroring
+ * zeus src/observability/trace.ts + trace-query.ts. Read-only pass-through
+ * views: payload text is already redacted and bounded (D-4) by zeus before it
+ * leaves the process — the console never re-stores it.
+ */
+export type TraceSpanKind =
+  | 'intent'
+  | 'branch'
+  | 'dag-node'
+  | 'decide'
+  | 'tool'
+  | 'model'
+  | 'decision-step';
+
+/** Model-call facts carried by a model span (TracePort v1 §2). */
+export interface TraceModelCall {
+  backend: string;
+  model: string;
+  /** Decision primitive that drove the call (noul/choice/score). */
+  kind?: string;
+  tokensIn?: number;
+  tokensOut?: number;
+  reasoningTokens?: number;
+  cacheReadTokens?: number;
+  tokensEstimated?: boolean;
+  /** Family-wide cost unit; micros share the model-hub unit. */
+  costMicros?: number | null;
+  latencyMs?: number;
+  error?: string;
+}
+
+/** Decision-step facts carried by a decision-step span (TracePort v1 §2). */
+export interface TraceDecisionStep {
+  name: 'fanout' | 'aggregate' | 'arbitration' | 'judge';
+  vassals?: string[];
+  conclusion?: string;
+  latencyMs?: number;
+}
+
+export interface TraceSpan {
+  traceId: string;
+  /** Branch runId; the intent root uses the intent id. */
+  spanId: string;
+  parentSpanId?: string;
+  kind: TraceSpanKind;
+  vassal?: string;
+  skill?: string;
+  realm?: string;
+  startedAt: string;
+  endedAt?: string;
+  outcome?: string;
+  /** One-line summary of the call fact (already-redacted on zeus side). */
+  summary?: string;
+  call?: TraceModelCall;
+  step?: TraceDecisionStep;
+  events: Array<{ kind: string; at: string; detail?: string }>;
+}
+
+/** tree.root is the intent span; tree.spans holds the descendants (flat). */
+export interface TraceTree {
+  traceId: string;
+  root: TraceSpan;
+  spans: TraceSpan[];
+}
+
+/** Aggregate decision-call facts of one query result (TracePort v1 §5). */
+export interface TraceSummary {
+  /** Sum of the measured model-call latencies in the returned trees. */
+  totalLatencyMs: number;
+  /** Sum of model-call costs in micros; calls without a known price add 0. */
+  totalCostMicros: number;
+  /** Model calls that ended in an error. */
+  errorCount: number;
+}
+
+/** zeus GET /api/v1/traces response: matched span trees + aggregate summary. */
+export interface TraceQueryResult {
+  traces: TraceTree[];
+  summary: TraceSummary & { count: number };
+}
+
+/**
+ * zeus GET /api/v1/traces query parameters (TracePort v1 §5). Values stay
+ * strings so the BFF forwards them verbatim; zeus owns validation (400
+ * invalid_request passes through unchanged).
+ */
+export interface TraceListFilter {
+  agent?: string;
+  /** ISO timestamp lower bound. */
+  from?: string;
+  /** ISO timestamp upper bound. */
+  to?: string;
+  minCostMicros?: string;
+  maxCostMicros?: string;
+  traceId?: string;
+  limit?: string;
+}

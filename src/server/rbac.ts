@@ -25,6 +25,14 @@ export function canManageChannelAccounts(role: Role): boolean {
   return role === 'owner';
 }
 
+/**
+ * TracePort v1 §5 (Tier0 M2 W2-5): span trees expose per-call payloads and
+ * model costs, so the trace query face is owner-only.
+ */
+export function canViewTraces(role: Role): boolean {
+  return role === 'owner';
+}
+
 export function canDoControlledAction(role: Role): boolean {
   return role === 'owner' || role === 'operator';
 }

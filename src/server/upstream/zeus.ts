@@ -5,6 +5,8 @@ import type {
   DecisionPolicy,
   DecisionRecord,
   DecisionStatus,
+  TraceListFilter,
+  TraceQueryResult,
 } from './types.js';
 
 export interface DecisionListFilter {
@@ -78,6 +80,27 @@ export class ZeusUpstream {
 
   async getPolicy(): Promise<DecisionPolicy> {
     return callJson<DecisionPolicy>(this.baseUrl, this.token, '/api/v1/policy');
+  }
+
+  /**
+   * TracePort v1 §5 (D-5): cross-intent trace query over zeus GET
+   * /api/v1/traces (bearer-gated; payloads are redacted and bounded on the
+   * zeus side per D-4). Pure pass-through: filters forward verbatim, zeus
+   * owns validation and its 400 invalid_request responses pass through
+   * unchanged, transport failures fail closed as 503.
+   */
+  async getTraces(filter: TraceListFilter = {}): Promise<TraceQueryResult> {
+    return callJson<TraceQueryResult>(this.baseUrl, this.token, '/api/v1/traces', {
+      query: {
+        ...(filter.agent ? { agent: filter.agent } : {}),
+        ...(filter.from ? { from: filter.from } : {}),
+        ...(filter.to ? { to: filter.to } : {}),
+        ...(filter.minCostMicros ? { min_cost_micros: filter.minCostMicros } : {}),
+        ...(filter.maxCostMicros ? { max_cost_micros: filter.maxCostMicros } : {}),
+        ...(filter.traceId ? { trace_id: filter.traceId } : {}),
+        ...(filter.limit ? { limit: filter.limit } : {}),
+      },
+    });
   }
 
   async applyThresholds(payload: ThresholdPayload): Promise<DecisionPolicy> {
