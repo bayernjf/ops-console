@@ -2,6 +2,31 @@
 
 > 规则：完成项及时登记；缺口分"内核缺口（需回到 zeus/commerce 做）"与"外部验收项"。
 
+## 2026-10-31 Tier0 M2 W2-5：Agent 追踪页（trace 查询）
+
+- ✅ `/app/traces` 上线（owner-only）：只读 BFF 透传 zeus `GET /api/v1/traces`
+  （TracePort v1 §5 / D-5，zeus 侧 W2-4 已交付）。filters（agent / from / to /
+  成本区间 micros / traceId / limit）+ 结果列表（traceId、agent、开始时间、
+  总耗时、总成本 micros、错误数）+ 展开看 span 树（缩进 kind/name/latency/
+  error/tokens/cost；payload 已由 zeus 按 D-4 脱敏，控制台不二次处理）。
+- 改动：`src/server/upstream/{types,zeus}.ts`（`TraceListFilter` /
+  `getTraces`，沿用 callJson/Bearer/fail-closed）、`src/server/rbac.ts`
+  （`canViewTraces` owner-only）、`src/server/traces-service.ts`（trim +
+  逐字透传）、`src/pages/api/traces/index.ts`（operator → 403）、
+  `src/pages/app/traces/index.astro`（fail-closed 初始加载）、
+  `src/islands/TraceExplorer.tsx`（20s 轮询钳制 15–30s + 手动刷新，无 SSE/WS）、
+  `src/consts.ts`（独立 nav 条目「Agent 追踪」）、`src/styles/islands.css`
+  （trace 样式 + 家族级 `:focus-visible` 兜底 + `.table-wrap` 收编全局）。
+- 契约登记：`CONTRACT.md §6`；无新增环境变量（复用 `ZEUS_BASE_URL` /
+  `ZEUS_INTERNAL_TOKEN` / `OPS_NOTIFY_LIST_REFRESH_MS`）。
+- 测试：`tests/trace-upstream.test.ts`（透传逐字 / 空参省略 / 503 fail-closed /
+  400 invalid_request 透传 / service trim / RBAC）+ `tests/trace-explorer-island.test.tsx`
+  （filters 渲染 / 结果渲染 / span 树展开 / 查询串 / 空态 role=status / 错误
+  role=alert）。全量 Vitest 101/101、astro check、eslint、build 本地全绿。
+- 依赖说明：zeus 未开启 `ZEUS_DECISION_TRACE_FILE` 时页面为空态文案（不报
+  错）；契约级 mock（node:http 假上游）验证透传与 fail-closed，形状对照
+  `zeus/src/observability/trace-query.ts` 与 `zeus/src/http/server.ts:1165`。
+
 ## 2026-10-31 Tier0 评审 H1 收尾（启动姿态日志）
 
 - ✅ 评审建议"启动日志打印授权姿态"落地：SSR boot（`src/middleware.ts` 模块加载，config

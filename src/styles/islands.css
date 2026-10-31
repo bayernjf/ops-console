@@ -4,6 +4,12 @@
  * tokens.css. */
 
 /* ---- Buttons (shared) ---- */
+/* OC-5 family baseline: keyboard focus must be visible on the dark palette
+   (UA default is too faint). Applies to every island and shared control. */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--data);
+  outline-offset: 2px;
+}
 .btn { cursor: pointer; border-radius: 6px; border: var(--hair); padding: 7px 14px; font: inherit; font-size: 13px; }
 .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .btn--primary { background: var(--data-dim); color: var(--data); border-color: var(--data-dim); }
@@ -98,3 +104,49 @@
 }
 .form-row label.check { flex-direction: row; align-items: center; gap: 6px; }
 .settle-row { display: flex; gap: 10px; align-items: center; margin-top: 10px; flex-wrap: wrap; }
+
+/* ---- TraceExplorer island (Tier0 M2 W2-5) ---- */
+.trace-explorer { display: flex; flex-direction: column; gap: 12px; }
+/* OC-4 family baseline: wide tables get a horizontal scroll container instead
+   of overflowing the page (shared with the notifications page). */
+.table-wrap { overflow-x: auto; }
+.trace-filters { display: flex; gap: 14px; align-items: end; flex-wrap: wrap; }
+.trace-filters label {
+  display: flex; flex-direction: column; gap: 5px;
+  font-size: 12px; color: var(--ink-dim);
+}
+.trace-filters input {
+  background: var(--steel-900); color: var(--ink); border: var(--hair); border-radius: 6px;
+  padding: 7px 9px; font: inherit; min-width: 150px;
+  color-scheme: dark; /* native datetime/number pickers stay on-palette */
+}
+.trace-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.trace-table th {
+  text-align: left; color: var(--ink-faint); font-weight: 500; font-size: 12px;
+  padding: 8px 10px; border-bottom: var(--hair);
+}
+.trace-table td { padding: 10px; border-bottom: 1px solid var(--steel-800); vertical-align: top; }
+.trace-table tr:hover td { background: var(--steel-850); }
+.trace-table .num { font-family: var(--mono); white-space: nowrap; }
+.trace-table .time { font-family: var(--mono); font-size: 12px; color: var(--ink-dim); white-space: nowrap; }
+.trace-table code { color: var(--data); font-size: 12px; word-break: break-all; }
+.error-cell { font-family: var(--mono); }
+.trace-detail-row td { background: var(--steel-900); }
+.span-tree { list-style: none; margin: 0; padding: 0; font-size: 12px; }
+.span-node { padding: 3px 0; border-left: 1px solid var(--steel-600); padding-left: 10px; }
+.span-line { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.span-kind {
+  display: inline-block; padding: 1px 7px; border-radius: 8px;
+  font-family: var(--mono); font-size: 11px;
+  background: var(--steel-700); color: var(--ink-dim);
+}
+.span-kind--intent { background: var(--data-dim); color: var(--data); }
+.span-kind--branch, .span-kind--dag-node { background: var(--steel-600); color: var(--ink); }
+.span-kind--decide { background: var(--power-dim); color: var(--power); }
+.span-kind--model { background: rgba(180, 103, 255, 0.2); color: var(--plasma); }
+.span-kind--decision-step { background: var(--data-dim); color: var(--data); }
+.span-kind--tool { background: var(--steel-700); color: var(--ink-dim); }
+.span-name { font-family: var(--mono); color: var(--ink); word-break: break-all; }
+.span-latency { font-family: var(--mono); color: var(--ink-dim); }
+.span-error { color: var(--alert); font-family: var(--mono); font-size: 12px; word-break: break-all; }
+.span-meta { margin-left: 2px; margin-top: 2px; color: var(--ink-faint); font-family: var(--mono); font-size: 11px; word-break: break-all; }

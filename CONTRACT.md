@@ -104,3 +104,29 @@ RBAC 矩阵（`src/server/rbac.ts`）：
 5. 看板数字与 commerce `GET /api/v1/dashboard` 逐字段一致。
 6. 通知：本地制造 D2/D3 挂起 → ≤60s 接收端收到卡片 → 重复轮询不重复投递 → 深链接直达 `/app/approvals/:id`。
 7. 关掉 ops-console 进程后，zeus/commerce 各自 `/healthz` 与 API 不受影响。
+
+## 6. Tier0 M2 W2-5：Agent 追踪页（owner-only 只读 BFF，2026-10-31）
+
+依据 bayjf `zeus-core-TracePort规范v1.md` §5（定案 D-5：zeus 持久化+查询 API，
+ops-console 纯只读 BFF，不建任何本地存储）。
+
+- 页面：`/app/traces`（**owner-only**，operator 见锁性说明）：filters（agent /
+  from / to / 成本区间 micros / traceId / limit，limit zeus 上限 200）+ 结果
+  列表（traceId、agent、开始时间、总耗时、总成本 micros、错误数）+ 展开查看
+  span 树（缩进渲染 kind / name / latency / error / tokens / cost；payload
+  摘要由 zeus 侧按 D-4 脱敏截断，控制台不二次处理）。
+- 服务端端点：`GET /api/traces?agent=&from=&to=&min_cost_micros=&max_cost_micros=&trace_id=&limit=`
+  → 逐字透传 zeus `GET /api/v1/traces`（响应 `{traces, summary}`）。
+  operator 调用 → `403 FORBIDDEN`（`canViewTraces`，`src/server/rbac.ts`）；
+  上游 4xx/5xx 原样透传，传输失败 503 fail-closed。
+- upstream：`ZeusUpstream.getTraces()`（沿用 callJson / Bearer / fail-closed
+  既有模式）；service 层（`src/server/traces-service.ts`）只做 trim 与
+  空参省略，校验（ISO 时间窗、非负整数成本、limit）归 zeus。
+- 实时性：**轮询 20s（15–30s 钳制，复用 `OPS_NOTIFY_LIST_REFRESH_MS`）+
+  手动刷新 + 过滤提交刷新**；不做 SSE/WebSocket（CONTRACT 冻结）。
+- 测试：`tests/trace-upstream.test.ts`（透传/空参省略/503 fail-closed/400
+  透传/service trim/RBAC owner-only）、`tests/trace-explorer-island.test.tsx`
+  （filters 渲染、结果渲染、span 树展开、查询串逐字、空态 `role="status"`、
+  错误态 `role="alert"`）。
+- 依赖：zeus 侧需开启 `ZEUS_DECISION_TRACE_FILE` 才产生 trace 导出；未开启时
+  页面呈现空态文案，不报错。

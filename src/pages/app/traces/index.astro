@@ -1,0 +1,48 @@
+---
+import ConsoleLayout from '../../../layouts/ConsoleLayout.astro';
+import TraceExplorer from '../../../islands/TraceExplorer';
+import { getContext } from '../../../server/context.js';
+import { listTraces } from '../../../server/traces-service.js';
+import { canViewTraces } from '../../../server/rbac.js';
+import type { TraceQueryResult } from '../../../server/upstream/types.js';
+
+const session = Astro.locals.session!;
+const allowed = canViewTraces(session.role);
+
+// Tier0 M2 W2-5 (TracePort v1 §5 / D-5): owner-only read-only trace query over
+// zeus GET /api/v1/traces. Fail-closed like every page: on upstream failure the
+// island still mounts (it surfaces the same error), but no stale data is shown.
+let initial: TraceQueryResult | null = null;
+let loadError: string | null = null;
+if (allowed) {
+  try {
+    initial = await listTraces(getContext());
+  } catch (thrown) {
+    loadError = thrown instanceof Error ? thrown.message : String(thrown);
+  }
+}
+const refreshMs = getContext().config.notify.listRefreshMs;
+---
+<ConsoleLayout title="Agent 追踪" session={session}>
+  {!allowed ? (
+    <div class="panel">
+      <p class="hint">
+        Trace 查询为 owner-only（span 树含逐次模型调用 payload 与成本）。当前角色
+        {session.role} 不可见；绕过页面直接调 <code>GET /api/traces</code> 仍会得到 403 FORBIDDEN。
+      </p>
+    </div>
+  ) : loadError ? (
+    <div class="panel panel--error">
+      <p>上游暂时不可达（zeus 未响应），trace 加载失败：{loadError}</p>
+      <p class="hint">页面已 fail-closed，不会展示过期缓存。</p>
+    </div>
+  ) : initial ? (
+    <TraceExplorer client:load initial={initial} refreshMs={refreshMs} />
+  ) : null}
+</ConsoleLayout>
+<style>
+  .panel { padding: 16px; border: var(--hair); border-radius: 8px; background: var(--steel-850); }
+  .panel--error { border-color: var(--alert); }
+  .hint { color: var(--ink-dim); font-size: 12px; margin: 0; }
+  .hint code { color: var(--ink); }
+</style>

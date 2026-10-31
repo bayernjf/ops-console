@@ -9,6 +9,7 @@ Tier0 产品族的**运营控制台**（M8）：单进程 SSR 工作台，让日
 - 单主账号 + 最小 RBAC：owner（可审批 D1/D2/D3、可改阈值/通知配置）、operator（可操作、可审批 D1/D2、不可改阈值、不可做 D3 审批）。
 - 第一批：认证/RBAC、只读经营看板（订单/退款/内容/净额，不含成本）、D1–D3 审批工作台（批准/驳回，与 zeus `/approval` 一致）、通知卡片 + 审批深链接（本地 webhook 全链路）。
 - 第二批（受控写）：上架提交、退款审批、库存手工调整。
+- Tier0 M2 W2-5：Agent 追踪页（`/app/traces`，owner-only 只读透传 zeus trace 查询，TracePort v1 §5 / D-5，见 CONTRACT.md §6）。
 - 通知：IM 只做卡片 + 深链接回控制台（不在 IM 内批/驳）；D2/D3 挂起/超时/通道失败 webhook，超时升级，按 decisionId 幂等。
 - **明确不做**：多租户/计费、自研支付/物流/发票/记账/财务/CRM/采购、M7 任务执行监控、现网部署、真实外部 webhook 触达（本轮仅本地验证）、ops-console-landing 公开门面（后续主线单独建）。
 
