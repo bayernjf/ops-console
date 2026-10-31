@@ -2,6 +2,18 @@
 
 > 规则：完成项及时登记；缺口分"内核缺口（需回到 zeus/commerce 做）"与"外部验收项"。
 
+## 2026-10-31 Tier0 评审 P2 收尾（a11y 补齐 + 中间件/路由测试）
+
+- ✅ UIUX 评审 P2（ops-console 0 aria / 0 focus）按 `/app/traces` 既有基准最小补齐，未做重设计：
+  - 岛屿：`ApprovalList`（meta 行 `aria-live=polite`、error `role=alert`、空态 `role=status`、表头 `scope=col`）；`ApprovalActions` / `PolicyThresholds`（动作结果消息按失败/成功分 `alert`/`status`）；`RefundOps` / `InventoryOps` / `OrdersOps`（动作结果消息同上）；`ProductOps`（创建与上架两条消息同上）。
+  - 页面：8 张服务端表格表头补 `scope=col`（approvals 详情审批历史、orders 列表/详情、products 详情、content、inventory、refunds、notifications 投递日志）；`ConsoleLayout` 主导航 `aria-label`；notifications 配置结果 `#notify-form-msg` `aria-live=polite`；approvals 详情 replay 外链补 `rel=noreferrer`（对齐 notifications 页既有写法）。
+  - 原生已覆盖、不重复加：全站按钮均有可见文本（RefundOps 两步确认按钮此前已带 `aria-label`）；grade/status/tag 徽章的文本即状态值本身，无需额外 role；login 表单 label 隐式关联且错误提示已有 `role=alert`；`:focus-visible` 家族兜底已在 OC-5 落地（`src/styles/islands.css`）。
+- ✅ 代码评审 P2（`src/middleware.ts` 与路由处理器无测试引用）补齐：
+  - `tests/middleware.test.ts` 10 例：未登录页面 302（`next` 编码且保留 path+query）、未登录 API 401 统一信封、公开路径直通（login/healthz/auth login/inbound webhook）、owner/operator 有效会话通过并注入 `locals.session`、篡改签名 cookie 302、过期 cookie 302、API 携带无效 cookie 401（非重定向）、SLA 调度器 boot 启动一次且拿到已解析 config（H1 收尾）。
+  - `tests/route-authz.test.ts` 10 例（node:http 假 zeus，沿用 trace-upstream 先例）：`GET /api/traces` operator 403 / 匿名 403（路由层纵深防御）；死端口 → 503 `UPSTREAM_UNAVAILABLE` 信封且不泄漏内部 base URL（H2 回归门）；zeus 400 逐字透传不二次包装；`POST /api/approvals/:id/decision` D3 operator 403（先读 grade 再 RBAC，不触审批写）、owner D2 200 且 `approver` 由服务端会话注入、非法 verdict 400 且不触上游；`PUT /api/policy/thresholds` operator 403（上游前拦截）、死端口 503、owner 200 且 `actor` 注入会话用户名。
+  - 测试内预期的上游失败日志按约定 mock（`console.error` spy），不污染输出；middleware 模块的启动姿态行在 import 前静音。
+- 验证：`astro check` 0 errors / `eslint .` 0 / `vitest run` 19 文件 122 用例全绿（本轮新增 21）/ `astro build` 成功。
+
 ## 2026-10-31 Tier0 M2 W2-5：Agent 追踪页（trace 查询）
 
 - ✅ `/app/traces` 上线（owner-only）：只读 BFF 透传 zeus `GET /api/v1/traces`
