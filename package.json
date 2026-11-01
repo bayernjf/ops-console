@@ -17,7 +17,8 @@
     "test": "vitest run",
     "lint": "eslint .",
     "dev:upstream": "bash scripts/dev-upstream.sh",
-    "dev:receiver": "node --experimental-sqlite --env-file=.env scripts/fake-webhook-receiver.ts"
+    "dev:receiver": "node --experimental-sqlite --env-file=.env scripts/fake-webhook-receiver.ts",
+    "check:tokens": "node scripts/check-tokens.mjs"
   },
   "dependencies": {
     "@astrojs/check": "^0.9.10",
