@@ -106,6 +106,7 @@ export default function ApprovalList({ initial, refreshMs }: Props) {
       {visible.length === 0 && !error ? (
         <AsyncState empty emptyText="暂无待审批决策（D1 awaiting_approval / D2·D3 blocked）。" />
       ) : (
+        <div className="table-wrap">
         <table className="approval-table">
           <thead>
             <tr>
@@ -172,6 +173,7 @@ export default function ApprovalList({ initial, refreshMs }: Props) {
             })}
           </tbody>
         </table>
+        </div>
       )}
     </div>
   );
