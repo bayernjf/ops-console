@@ -1,4 +1,5 @@
 import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
+import AsyncState from '../components/AsyncState';
 import type {
   TraceQueryResult,
   TraceSpan,
@@ -299,15 +300,14 @@ export default function TraceExplorer({ initial, refreshMs }: Props) {
       </p>
 
       {error ? (
-        <p className="list-error" role="alert">
-          加载失败：{error}（上游不可达时 fail-closed）
-        </p>
+        <AsyncState error={`${error}（上游不可达时 fail-closed）`} />
       ) : null}
 
       {result.traces.length === 0 && !error ? (
-        <p className="list-empty" role="status">
-          当前过滤条件下没有 trace：zeus 尚未导出（需开启 ZEUS_DECISION_TRACE_FILE）或不匹配过滤条件。
-        </p>
+        <AsyncState
+          empty
+          emptyText="当前过滤条件下没有 trace：zeus 尚未导出（需开启 ZEUS_DECISION_TRACE_FILE）或不匹配过滤条件。"
+        />
       ) : (
         <div className="table-wrap">
           <table className="trace-table">

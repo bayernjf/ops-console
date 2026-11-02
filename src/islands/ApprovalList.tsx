@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import AsyncState from '../components/AsyncState';
 import type { DecisionRecord, Grade } from '../server/upstream/types';
 import { describeSla, humanizeMs } from '../server/sla';
 
@@ -99,9 +100,11 @@ export default function ApprovalList({ initial, refreshMs }: Props) {
         </button>
         <span className="list-meta" aria-live="polite">每 20s 自动刷新 · 共 {visible.length} 条</span>
       </div>
-      {error ? <p className="list-error" role="alert">加载失败：{error}（上游不可达时 fail-closed）</p> : null}
+      {error ? (
+        <AsyncState error={`${error}（上游不可达时 fail-closed）`} />
+      ) : null}
       {visible.length === 0 && !error ? (
-        <p className="list-empty" role="status">暂无待审批决策（D1 awaiting_approval / D2·D3 blocked）。</p>
+        <AsyncState empty emptyText="暂无待审批决策（D1 awaiting_approval / D2·D3 blocked）。" />
       ) : (
         <table className="approval-table">
           <thead>

@@ -150,3 +150,30 @@
 .span-latency { font-family: var(--mono); color: var(--ink-dim); }
 .span-error { color: var(--alert); font-family: var(--mono); font-size: 12px; word-break: break-all; }
 .span-meta { margin-left: 2px; margin-top: 2px; color: var(--ink-faint); font-family: var(--mono); font-size: 11px; word-break: break-all; }
+
+/* @bayjf/console-ui: async-state — unified loading/empty/error three-state (UIUX P2 #8) */
+.async-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 32px 16px;
+  color: var(--ink-dim);
+  font-size: 13px;
+}
+.async-state__ring {
+  width: 18px;
+  height: 18px;
+  flex: none;
+  border: 2px solid var(--steel-500);
+  border-top-color: var(--ink);
+  border-radius: 50%;
+  animation: async-state-spin 0.9s linear infinite;
+}
+.async-state__icon { flex: none; color: var(--ink-faint); }
+.async-state__body { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
+.async-state__text { line-height: 1.5; }
+.async-state--error .async-state__icon { color: var(--alert); }
+.async-state--error .async-state__text { color: var(--alert); }
+.async-state__retry { margin-top: 2px; }
+@keyframes async-state-spin { to { transform: rotate(360deg); } }
