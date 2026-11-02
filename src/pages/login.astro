@@ -65,6 +65,13 @@ const next = Astro.url.searchParams.get('next') ?? '/app/approvals';
       .field span { color: var(--ink-faint); font-size: 12px; }
       .error { color: var(--alert); font-size: 13px; }
       .hint { color: var(--ink-faint); font-size: 12px; margin: 4px 0 0; }
+
+      /* Mobile: card fills the viewport width instead of overflowing. */
+      @media (max-width: 480px) {
+        .login-wrap { padding: 0 16px; }
+        .login-card { width: 100%; max-width: 360px; }
+        .login-card .btn { min-height: 40px; }
+      }
     </style>
   </body>
 </html>
