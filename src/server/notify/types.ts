@@ -45,6 +45,8 @@ export interface NotifyRuntimeConfig {
   escalationMinutes: number;
   storeFile: string;
   publicBaseUrl: string;
+  /** Dev-only opt-in allowing loopback/private webhook targets. */
+  allowPrivateHosts: boolean;
 }
 
 /** Outcome of one webhook delivery attempt sequence. */
