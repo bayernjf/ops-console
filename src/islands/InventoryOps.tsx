@@ -12,21 +12,31 @@ export default function InventoryOps({ skus }: { skus: SkuOption[] }) {
   const [confirm, setConfirm] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState(false);
 
   async function apply(): Promise<void> {
     setBusy(true);
-    const res = await fetch('/api/inventory', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ skuId, qty: Number(qty) }),
-    });
-    const data = await res.json().catch(() => ({}));
-    setMsg(
-      res.ok
-        ? `已调整：sku=${data?.inventory?.skuId} qtyAvailable=${data?.inventory?.qtyAvailable}（操作人由服务端注入会话用户）`
-        : `调整失败 ${res.status}：${data?.error?.message ?? JSON.stringify(data)}`,
-    );
-    setBusy(false);
+    setFailed(false);
+    try {
+      const res = await fetch('/api/inventory', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ skuId, qty: Number(qty) }),
+      });
+      const data = await res.json().catch(() => ({}));
+      setFailed(!res.ok);
+      setMsg(
+        res.ok
+          ? `已调整：sku=${data?.inventory?.skuId} qtyAvailable=${data?.inventory?.qtyAvailable}（操作人由服务端注入会话用户）`
+          : `调整失败 ${res.status}：${data?.error?.message ?? JSON.stringify(data)}`,
+      );
+    } catch {
+      // Transport failure: surface it and always release the busy state (P2-7).
+      setFailed(true);
+      setMsg('网络异常，请重试：无法连接服务器。');
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
@@ -46,7 +56,7 @@ export default function InventoryOps({ skus }: { skus: SkuOption[] }) {
       <button className="btn btn--primary" disabled={busy || !confirm || !skuId} onClick={() => void apply()}>
         {busy ? '提交中…' : '应用调整'}
       </button>
-      {msg ? <p className={msg.includes('失败') ? 'action-failed' : 'action-ok'} role={msg.includes('失败') ? 'alert' : 'status'}>{msg}</p> : null}
+      {msg ? <p className={failed ? 'action-failed' : 'action-ok'} role={failed ? 'alert' : 'status'}>{msg}</p> : null}
     </section>
   );
 }

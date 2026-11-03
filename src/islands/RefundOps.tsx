@@ -19,48 +19,69 @@ export default function RefundOps() {
   const [refundTotal, setRefundTotal] = useState<number | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState(false);
 
   async function request(): Promise<void> {
     setBusy(true);
+    setFailed(false);
     setConfirming(false);
-    const res = await fetch('/api/refunds', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ orderId, lines: [{ orderItemId }], reason }),
-    });
-    const data = await res.json().catch(() => ({}));
-    if (res.status === 423) {
-      setRefundId(data?.refund?.id ?? null);
-      setRefundTotal(refundTotalOf(data));
-      setMsg(`已挂起待审批（423）：refund=${data?.refund?.id} decisionId=${data?.refund?.decisionId} status=${data?.refund?.status}。渠道退款尚未执行。`);
-    } else if (res.ok) {
-      setRefundId(data?.refund?.id ?? null);
-      setRefundTotal(refundTotalOf(data));
-      setMsg(`退款已直接处理：status=${data?.refund?.status}`);
-    } else {
+    try {
+      const res = await fetch('/api/refunds', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId, lines: [{ orderItemId }], reason }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.status === 423) {
+        setRefundId(data?.refund?.id ?? null);
+        setRefundTotal(refundTotalOf(data));
+        setMsg(`已挂起待审批（423）：refund=${data?.refund?.id} decisionId=${data?.refund?.decisionId} status=${data?.refund?.status}。渠道退款尚未执行。`);
+      } else if (res.ok) {
+        setRefundId(data?.refund?.id ?? null);
+        setRefundTotal(refundTotalOf(data));
+        setMsg(`退款已直接处理：status=${data?.refund?.status}`);
+      } else {
+        setRefundId(null);
+        setRefundTotal(null);
+        setFailed(true);
+        setMsg(`发起失败 ${res.status}：${data?.error?.message ?? JSON.stringify(data)}`);
+      }
+    } catch {
+      // Transport failure: surface it and always release the busy state —
+      // otherwise the panel stays bricked until a page refresh (P2-7).
       setRefundId(null);
       setRefundTotal(null);
-      setMsg(`发起失败 ${res.status}：${data?.error?.message ?? JSON.stringify(data)}`);
+      setFailed(true);
+      setMsg('网络异常，请重试：无法连接服务器。');
+    } finally {
+      setBusy(false);
     }
-    setBusy(false);
   }
 
   async function settle(verdict: 'approve' | 'reject'): Promise<void> {
     if (!refundId) return;
     setBusy(true);
+    setFailed(false);
     setConfirming(false);
-    const res = await fetch(`/api/refunds/${refundId}/decision`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ verdict, comment: 'console batch2' }),
-    });
-    const data = await res.json().catch(() => ({}));
-    setMsg(
-      res.ok
-        ? `已${verdict === 'approve' ? '批准并执行渠道退款' : '驳回'}：refund status=${data?.refund?.status}`
-        : `审批失败 ${res.status}：${data?.error?.message ?? JSON.stringify(data)}`,
-    );
-    setBusy(false);
+    try {
+      const res = await fetch(`/api/refunds/${refundId}/decision`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ verdict, comment: 'console batch2' }),
+      });
+      const data = await res.json().catch(() => ({}));
+      setFailed(!res.ok);
+      setMsg(
+        res.ok
+          ? `已${verdict === 'approve' ? '批准并执行渠道退款' : '驳回'}：refund status=${data?.refund?.status}`
+          : `审批失败 ${res.status}：${data?.error?.message ?? JSON.stringify(data)}`,
+      );
+    } catch {
+      setFailed(true);
+      setMsg('网络异常，请重试：无法连接服务器。');
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
@@ -102,7 +123,7 @@ export default function RefundOps() {
           )}
         </div>
       ) : null}
-      {msg ? <p className={msg.includes('失败') ? 'action-failed' : 'action-ok'} role={msg.includes('失败') ? 'alert' : 'status'}>{msg}</p> : null}
+      {msg ? <p className={failed ? 'action-failed' : 'action-ok'} role={failed ? 'alert' : 'status'}>{msg}</p> : null}
     </section>
   );
 }

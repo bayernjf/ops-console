@@ -65,56 +65,81 @@ export default function ProductOps({ products, accounts, role }: Props) {
   const [sellPoints, setSellPoints] = useState('');
   const [submission, setSubmission] = useState<Submission | null>(null);
   const [submitMsg, setSubmitMsg] = useState<string | null>(null);
+  const [submitFail, setSubmitFail] = useState(false);
   const [busy, setBusy] = useState(false);
 
   async function createProduct(): Promise<void> {
     setBusy(true);
-    const { status, data } = await post('/api/products', {
-      title,
-      channelAccountId: accountId || undefined,
-      skus: [{ skuCode, price: Number(price), currency }],
-    });
-    setCreateFail(status >= 400);
-    setCreateMsg(status >= 400
-      ? `失败 ${status}：${data?.error?.message ?? JSON.stringify(data)}`
-      : `已创建商品 ${data?.product?.id}（SKU ${skuCode}）。注意：新建商品不会自动上架，需在下方提交上架。`);
-    setBusy(false);
+    setCreateFail(false);
+    try {
+      const { status, data } = await post('/api/products', {
+        title,
+        channelAccountId: accountId || undefined,
+        skus: [{ skuCode, price: Number(price), currency }],
+      });
+      setCreateFail(status >= 400);
+      setCreateMsg(status >= 400
+        ? `失败 ${status}：${data?.error?.message ?? JSON.stringify(data)}`
+        : `已创建商品 ${data?.product?.id}（SKU ${skuCode}）。注意：新建商品不会自动上架，需在下方提交上架。`);
+    } catch {
+      // Transport failure: surface it and always release the busy state (P2-7).
+      setCreateFail(true);
+      setCreateMsg('网络异常，请重试：无法连接服务器。');
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function submitListing(): Promise<void> {
     setBusy(true);
-    const sellingPoints = sellPoints.split(/[,，\n]/).map((s) => s.trim()).filter(Boolean);
-    const { status, data } = await post('/api/listings', {
-      productId: prodId,
-      channelAccountId: accountId,
-      contentType: 'detail',
-      sellingPoints,
-    });
-    if (status === 423 || status === 201) {
-      const sub = data?.submission as Submission | undefined;
-      setSubmission(sub ?? null);
-      setSubmitMsg(
-        status === 423
-          ? `已挂起待审批：decisionId=${sub?.decisionId} grade=${sub?.grade} status=${sub?.status}（423 正常挂起，审批后才真正发布到渠道）`
-          : `提交完成：status=${sub?.status}`,
-      );
-    } else {
-      setSubmission(null);
-      setSubmitMsg(`失败 ${status}：${data?.error?.message ?? JSON.stringify(data)}`);
+    setSubmitFail(false);
+    try {
+      const sellingPoints = sellPoints.split(/[,，\n]/).map((s) => s.trim()).filter(Boolean);
+      const { status, data } = await post('/api/listings', {
+        productId: prodId,
+        channelAccountId: accountId,
+        contentType: 'detail',
+        sellingPoints,
+      });
+      if (status === 423 || status === 201) {
+        const sub = data?.submission as Submission | undefined;
+        setSubmission(sub ?? null);
+        setSubmitMsg(
+          status === 423
+            ? `已挂起待审批：decisionId=${sub?.decisionId} grade=${sub?.grade} status=${sub?.status}（423 正常挂起，审批后才真正发布到渠道）`
+            : `提交完成：status=${sub?.status}`,
+        );
+      } else {
+        setSubmission(null);
+        setSubmitFail(true);
+        setSubmitMsg(`失败 ${status}：${data?.error?.message ?? JSON.stringify(data)}`);
+      }
+    } catch {
+      setSubmitFail(true);
+      setSubmitMsg('网络异常，请重试：无法连接服务器。');
+    } finally {
+      setBusy(false);
     }
-    setBusy(false);
   }
 
   async function settle(verdict: 'approve' | 'reject'): Promise<void> {
     if (!submission) return;
     setBusy(true);
-    const { status, data } = await post(`/api/listings/${submission.decisionId}/${verdict}`, { comment: 'console batch2' });
-    setSubmitMsg(
-      status >= 400
-        ? `审批失败 ${status}：${data?.error?.message ?? JSON.stringify(data)}`
-        : `已${verdict === 'approve' ? '批准上架' : '驳回'}：${data?.submission?.status ?? data?.result?.status ?? 'done'}`,
-    );
-    setBusy(false);
+    setSubmitFail(false);
+    try {
+      const { status, data } = await post(`/api/listings/${submission.decisionId}/${verdict}`, { comment: 'console batch2' });
+      setSubmitFail(status >= 400);
+      setSubmitMsg(
+        status >= 400
+          ? `审批失败 ${status}：${data?.error?.message ?? JSON.stringify(data)}`
+          : `已${verdict === 'approve' ? '批准上架' : '驳回'}：${data?.submission?.status ?? data?.result?.status ?? 'done'}`,
+      );
+    } catch {
+      setSubmitFail(true);
+      setSubmitMsg('网络异常，请重试：无法连接服务器。');
+    } finally {
+      setBusy(false);
+    }
   }
 
   const listingLocked = submission?.grade === 'D3' && role !== 'owner';
@@ -163,7 +188,7 @@ export default function ProductOps({ products, accounts, role }: Props) {
         <button className="btn btn--primary" disabled={busy || !prodId} onClick={() => void submitListing()}>
           提交上架
         </button>
-        {submitMsg ? <p className={submitMsg.includes('失败') ? 'action-failed' : 'action-ok'} role={submitMsg.includes('失败') ? 'alert' : 'status'}>{submitMsg}</p> : null}
+        {submitMsg ? <p className={submitFail ? 'action-failed' : 'action-ok'} role={submitFail ? 'alert' : 'status'}>{submitMsg}</p> : null}
         {submission && submission.status === 'awaiting_approval' ? (
           <div className="settle-row">
             <p className="lock-note">

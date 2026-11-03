@@ -11,23 +11,33 @@ export default function OrdersOps({ accounts }: { accounts: AccountRow[] }) {
   const [accountId, setAccountId] = useState(accounts[0]?.id ?? '');
   const [msg, setMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState(false);
 
   async function pull(): Promise<void> {
     setBusy(true);
-    const res = await fetch('/api/orders/import', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ channelAccountId: accountId }),
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      setMsg(`拉单失败 ${res.status}：${data?.error?.message ?? JSON.stringify(data)}`);
-    } else {
-      const imported: unknown[] = data?.result?.imported ?? [];
-      const skipped: unknown[] = data?.result?.skipped ?? [];
-      setMsg(`拉单完成：新增 ${imported.length} 单，跳过（幂等）${skipped.length} 单。`);
+    setFailed(false);
+    try {
+      const res = await fetch('/api/orders/import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ channelAccountId: accountId }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setFailed(true);
+        setMsg(`拉单失败 ${res.status}：${data?.error?.message ?? JSON.stringify(data)}`);
+      } else {
+        const imported: unknown[] = data?.result?.imported ?? [];
+        const skipped: unknown[] = data?.result?.skipped ?? [];
+        setMsg(`拉单完成：新增 ${imported.length} 单，跳过（幂等）${skipped.length} 单。`);
+      }
+    } catch {
+      // Transport failure: surface it and always release the busy state (P2-7).
+      setFailed(true);
+      setMsg('网络异常，请重试：无法连接服务器。');
+    } finally {
+      setBusy(false);
     }
-    setBusy(false);
   }
 
   return (
@@ -43,7 +53,7 @@ export default function OrdersOps({ accounts }: { accounts: AccountRow[] }) {
       <button className="btn btn--primary" disabled={busy || !accountId} onClick={() => void pull()}>
         {busy ? '拉取中…' : '立即拉单'}
       </button>
-      {msg ? <p className={msg.includes('失败') ? 'action-failed' : 'action-ok'} role={msg.includes('失败') ? 'alert' : 'status'}>{msg}</p> : null}
+      {msg ? <p className={failed ? 'action-failed' : 'action-ok'} role={failed ? 'alert' : 'status'}>{msg}</p> : null}
     </section>
   );
 }
