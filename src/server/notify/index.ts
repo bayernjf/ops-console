@@ -30,6 +30,27 @@ export function maskWebhookUrl(raw: string): string {
   }
 }
 
+/**
+ * webhookUrl is the console's outbound channel for decision intel (amounts,
+ * intents, rule ids). Only absolute http(s) URLs are accepted (2026-11-02
+ * review P2-4): anything else (file:, ftp:, javascript:, unparsable) is
+ * rejected so a stolen owner session cannot turn the channel into a file
+ * read or an exotic-scheme probe. http stays allowed because the default
+ * receiver is a same-host loopback service; scheme is the guardrail, not
+ * host. Throws with a readable message — the PUT route maps it to 400.
+ */
+export function assertValidWebhookUrl(raw: string): void {
+  let parsed: URL;
+  try {
+    parsed = new URL(raw);
+  } catch {
+    throw new Error('webhookUrl must be an absolute URL');
+  }
+  if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
+    throw new Error('webhookUrl must use http or https');
+  }
+}
+
 let runtime: NotifyRuntimeConfig | null = null;
 let store: NotifyStore | null = null;
 let poller: PollerHandle | null = null;
@@ -102,7 +123,10 @@ export function updateNotifyConfig(patch: Partial<NotifyConfigView>): NotifyConf
   }
   const r = runtime;
   if (typeof patch.enabled === 'boolean') r.enabled = patch.enabled;
-  if (typeof patch.webhookUrl === 'string' && patch.webhookUrl.length > 0) r.webhookUrl = patch.webhookUrl;
+  if (typeof patch.webhookUrl === 'string' && patch.webhookUrl.length > 0) {
+    assertValidWebhookUrl(patch.webhookUrl);
+    r.webhookUrl = patch.webhookUrl;
+  }
   if (typeof patch.pollMs === 'number' && patch.pollMs > 0) r.pollMs = Math.floor(patch.pollMs);
   if (typeof patch.escalationMinutes === 'number' && patch.escalationMinutes > 0) {
     r.escalationMinutes = Math.floor(patch.escalationMinutes);
