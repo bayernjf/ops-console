@@ -1,6 +1,7 @@
 import type { APIRoute } from 'astro';
 import { getContext } from '../../../server/context.js';
 import { listProducts, createProduct } from '../../../server/commerce-ops-service.js';
+import { badRequest } from '../../../server/errors.js';
 import { jsonResponse, toErrorResponse } from '../../../server/endpoint-json.js';
 
 /** GET /api/products — passthrough commerce product list. */
@@ -16,12 +17,14 @@ export const GET: APIRoute = async () => {
 export const POST: APIRoute = async ({ request, locals }) => {
   try {
     const session = locals.session!;
-    const body = (await request.json()) as {
+    // A malformed JSON body is a client error: 400, never the 500 fallback.
+    const body = (await request.json().catch(() => null)) as {
       title?: string;
       channelAccountId?: string;
       attributes?: Record<string, unknown>;
       skus?: Array<{ skuCode: string; specs?: Record<string, unknown>; price: number; currency?: string }>;
-    };
+    } | null;
+    if (body === null) throw badRequest('JSON body required');
     const result = await createProduct(
       getContext(),
       {
