@@ -22,7 +22,15 @@ export interface RequestOptions {
   body?: unknown;
   query?: Record<string, string | undefined>;
   signal?: AbortSignal;
+  /** Total request timeout in ms (default 10s). Ignored when `signal` is
+   *  provided — an explicit caller signal always wins. */
+  timeoutMs?: number;
 }
+
+/** Default upstream budget: a half-hung upstream must surface as 503 within
+ *  seconds, not hold SSR pages and the notify poller hostage for minutes
+ *  (2026-11-02 review P2-1). */
+const DEFAULT_TIMEOUT_MS = 10_000;
 
 export async function callJson<T>(
   baseUrl: string,
@@ -49,13 +57,15 @@ export async function callJson<T>(
           ? { ...headers, 'Content-Type': 'application/json' }
           : headers,
       ...(options.body !== undefined ? { body: JSON.stringify(options.body) } : {}),
-      ...(options.signal ? { signal: options.signal } : {}),
+      signal: options.signal ?? AbortSignal.timeout(options.timeoutMs ?? DEFAULT_TIMEOUT_MS),
     };
     response = await fetch(url, init);
   } catch (thrown) {
     // The internal base URL and the transport cause stay in the server log
     // only (Tier0 review 2026-10-30 H2): the client-facing message is fixed
     // and generic, so the console never discloses where its upstreams live.
+    // TimeoutError lands here too — a timed-out upstream is a transport
+    // failure and maps to the same 503 UPSTREAM_UNAVAILABLE.
     const cause = thrown instanceof Error ? (thrown.stack ?? thrown.message) : String(thrown);
     console.error(`[ops-console] upstream ${url.toString()} unreachable: ${cause}`);
     throw new UpstreamError(503, 'UPSTREAM_UNAVAILABLE', 'upstream unavailable');

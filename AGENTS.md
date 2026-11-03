@@ -19,8 +19,8 @@ Tier0 产品族的**面向人运营工作台**（M8）。形态：**单进程 As
 - 认证：不建用户表、不注册；本地 env 角色密码 + HMAC 签名 httpOnly cookie；生产预留 Cloudflare Access（信任受保护头）、VPS 兜底 GitHub OIDC（本期只留缝，不实现）。
 
 ## 技术栈
-- Node 22（本机 22.23.2；Astro 锁定 **7.2.10**，7.4 要求 Node ≥22.23.4 不可用）、ESM。
-- Astro 7.2（output server, @astrojs/node standalone）、@astrojs/react 5、React 19。
+- Node 22+（本机 24.x；Astro **7.4.5**，2026-11-03 起已越过 7.4 的 Node ≥22.23.4 门槛并修掉 7.2.10 的两条 moderate 公告）、ESM。
+- Astro 7.4（output server, @astrojs/node standalone）、@astrojs/react 5、React 19。
 - 服务端测试：Vitest（真实 HTTP 端到端优先）；类型检查：`astro check`；ESLint flat config。
 - 不引入重型 UI 库（antd/mui 等）；手写 CSS，家族深色工业控制台 token 在 `src/styles/tokens.css`（steel/power/data 色板，取自 tier0-landing）。
 

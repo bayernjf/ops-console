@@ -109,7 +109,7 @@
 .trace-explorer { display: flex; flex-direction: column; gap: 12px; }
 /* OC-4 family baseline: wide tables get a horizontal scroll container instead
    of overflowing the page (shared with the notifications page). */
-.table-wrap { overflow-x: auto; }
+.table-wrap { overflow-x: auto; min-width: 0; }
 .trace-filters { display: flex; gap: 14px; align-items: end; flex-wrap: wrap; }
 .trace-filters label {
   display: flex; flex-direction: column; gap: 5px;
@@ -177,3 +177,14 @@
 .async-state--error .async-state__text { color: var(--alert); }
 .async-state__retry { margin-top: 2px; }
 @keyframes async-state-spin { to { transform: rotate(360deg); } }
+
+/* ---- Mobile breakpoints (batch 1: approvals list + traces) ----
+ * Desktop (>=1024px) rendering is unchanged; these rules only relax
+ * tap targets and filter sizing on narrow viewports. */
+@media (max-width: 768px) {
+  .btn { min-height: 40px; }
+  .btn--sm { min-height: 36px; }
+  .filter select { min-height: 40px; }
+  .trace-filters label { flex: 1 1 160px; }
+  .trace-filters input { min-width: 0; width: 100%; min-height: 40px; }
+}

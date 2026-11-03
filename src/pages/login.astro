@@ -30,6 +30,7 @@ const next = Astro.url.searchParams.get('next') ?? '/app/approvals';
     </div>
     <script>
       import { safeNextOr } from '../lib/safe-next';
+      import { loginErrorMessage } from '../lib/login-messages';
       // OC-3: `next` is only honored when it is a same-origin relative path;
       // anything else (absolute URL, "//host", "/\host") falls back to the
       // default console page instead of becoming an open redirect.
@@ -41,15 +42,23 @@ const next = Astro.url.searchParams.get('next') ?? '/app/approvals';
         const data = new FormData(form);
         const username = String(data.get('username') ?? '');
         const password = String(data.get('password') ?? '');
-        const res = await fetch('/api/auth/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ username, password }),
-        });
-        if (res.ok) {
-          window.location.href = next;
-        } else {
-          errorEl.textContent = '登录失败：账号或密码错误';
+        // P2-5: transport failures and non-401 statuses must surface their own
+        // message — a throttled user (429) retrying a correct password, or a
+        // silent unhandled rejection on network loss, both mislead.
+        try {
+          const res = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password }),
+          });
+          if (res.ok) {
+            window.location.href = next;
+          } else {
+            errorEl.textContent = loginErrorMessage(res.status);
+            errorEl.hidden = false;
+          }
+        } catch {
+          errorEl.textContent = loginErrorMessage(null);
           errorEl.hidden = false;
         }
       });
@@ -65,6 +74,13 @@ const next = Astro.url.searchParams.get('next') ?? '/app/approvals';
       .field span { color: var(--ink-faint); font-size: 12px; }
       .error { color: var(--alert); font-size: 13px; }
       .hint { color: var(--ink-faint); font-size: 12px; margin: 4px 0 0; }
+
+      /* Mobile: card fills the viewport width instead of overflowing. */
+      @media (max-width: 480px) {
+        .login-wrap { padding: 0 16px; }
+        .login-card { width: 100%; max-width: 360px; }
+        .login-card .btn { min-height: 40px; }
+      }
     </style>
   </body>
 </html>
