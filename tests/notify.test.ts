@@ -136,7 +136,7 @@ describe('notify poller', () => {
         escalationMinutes: 15,
         pollMs: 10_000,
         now: () => Date.parse('2026-10-24T08:00:00Z'),
-        deliver: (p) => deliverWebhook(receiver.url, p, { backoffMs: [1], sleep: async () => {} }),
+        deliver: (p) => deliverWebhook(receiver.url, p, { backoffMs: [1], sleep: async () => {}, allowPrivateHosts: true }),
       });
       await poller.tick();
       expect(receiver.received).toHaveLength(1);
@@ -166,7 +166,7 @@ describe('notify poller', () => {
         escalationMinutes: 15,
         pollMs: 10_000,
         now: () => Date.parse('2026-10-24T08:00:00Z'),
-        deliver: (p) => deliverWebhook(receiver.url, p, { backoffMs: [1], sleep: async () => {} }),
+        deliver: (p) => deliverWebhook(receiver.url, p, { backoffMs: [1], sleep: async () => {}, allowPrivateHosts: true }),
       });
       for (let i = 0; i < 5; i++) await poller.tick();
       expect(receiver.received).toHaveLength(1);
@@ -193,7 +193,7 @@ describe('notify poller', () => {
           escalationMinutes: 15,
           pollMs: 10_000,
           now: () => Date.parse('2026-10-24T08:00:00Z'),
-          deliver: (p) => deliverWebhook(receiver.url, p, { backoffMs: [1], sleep: async () => {} }),
+          deliver: (p) => deliverWebhook(receiver.url, p, { backoffMs: [1], sleep: async () => {}, allowPrivateHosts: true }),
         });
         await poller.tick();
         expect(receiver.received).toHaveLength(1);
@@ -211,7 +211,7 @@ describe('notify poller', () => {
           escalationMinutes: 15,
           pollMs: 10_000,
           now: () => Date.parse('2026-10-24T08:00:00Z'),
-          deliver: (p) => deliverWebhook(receiver.url, p, { backoffMs: [1], sleep: async () => {} }),
+          deliver: (p) => deliverWebhook(receiver.url, p, { backoffMs: [1], sleep: async () => {}, allowPrivateHosts: true }),
         });
         await poller2.tick();
         await poller2.tick();
@@ -241,7 +241,7 @@ describe('notify poller', () => {
         escalationMinutes: 15,
         pollMs: 10_000,
         now: () => nowMs,
-        deliver: (p) => deliverWebhook(receiver.url, p, { backoffMs: [1], sleep: async () => {} }),
+        deliver: (p) => deliverWebhook(receiver.url, p, { backoffMs: [1], sleep: async () => {}, allowPrivateHosts: true }),
       });
       await poller.tick();
       expect(receiver.received.map((r) => r.event)).toEqual(['pending']);
@@ -277,7 +277,7 @@ describe('notify poller', () => {
         escalationMinutes: 15,
         pollMs: 10_000,
         now: () => Date.parse('2026-10-24T08:00:00Z'),
-        deliver: (p) => deliverWebhook(receiver.url, p, { backoffMs: [1, 1, 1], sleep: async () => {} }),
+        deliver: (p) => deliverWebhook(receiver.url, p, { backoffMs: [1, 1, 1], sleep: async () => {}, allowPrivateHosts: true }),
       });
       await poller.tick();
 
@@ -309,7 +309,7 @@ describe('notify poller', () => {
         escalationMinutes: 15,
         pollMs: 10_000,
         now: () => Date.parse('2026-10-24T08:00:00Z'),
-        deliver: (p) => deliverWebhook(receiver.url, p, { backoffMs: [1], sleep: async () => {} }),
+        deliver: (p) => deliverWebhook(receiver.url, p, { backoffMs: [1], sleep: async () => {}, allowPrivateHosts: true }),
       });
       await poller.tick();
       await poller.tick();
