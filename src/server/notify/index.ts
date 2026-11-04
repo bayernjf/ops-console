@@ -13,6 +13,7 @@ import type { ServerContext } from '../context.js';
 import { NotifyStore } from './store.js';
 import { createPoller, type PollerHandle } from './poller.js';
 import { deliverWebhook } from './webhook.js';
+import { assertWebhookUrlSyntax } from '../net/url-guard.js';
 import type {
   DeliveryRecord,
   NotifyConfigView,
@@ -35,20 +36,13 @@ export function maskWebhookUrl(raw: string): string {
  * intents, rule ids). Only absolute http(s) URLs are accepted (2026-11-02
  * review P2-4): anything else (file:, ftp:, javascript:, unparsable) is
  * rejected so a stolen owner session cannot turn the channel into a file
- * read or an exotic-scheme probe. http stays allowed because the default
- * receiver is a same-host loopback service; scheme is the guardrail, not
- * host. Throws with a readable message — the PUT route maps it to 400.
+ * read or an exotic-scheme probe. Host rules live in the shared SSRF guard
+ * (src/server/net/url-guard.ts), which also rejects loopback/RFC1918 and
+ * literal-address variants; DNS is re-checked at delivery time.
+ * Throws with a readable message — the PUT route maps it to 400.
  */
-export function assertValidWebhookUrl(raw: string): void {
-  let parsed: URL;
-  try {
-    parsed = new URL(raw);
-  } catch {
-    throw new Error('webhookUrl must be an absolute URL');
-  }
-  if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
-    throw new Error('webhookUrl must use http or https');
-  }
+export function assertValidWebhookUrl(raw: string, options: { allowPrivateHosts?: boolean } = {}): void {
+  assertWebhookUrlSyntax(raw, options);
 }
 
 let runtime: NotifyRuntimeConfig | null = null;
@@ -66,6 +60,7 @@ function ensureRuntime(ctx: ServerContext): NotifyRuntimeConfig {
     escalationMinutes: ctx.config.notify.escalationMinutes,
     storeFile: ctx.config.notify.storeFile,
     publicBaseUrl: ctx.config.publicBaseUrl,
+    allowPrivateHosts: ctx.config.notify.allowPrivateHosts,
   };
   store = new NotifyStore(runtime.storeFile);
   store.load();
@@ -88,7 +83,8 @@ function rebuildPoller(): void {
     escalationMinutes: r.escalationMinutes,
     pollMs: r.pollMs,
     now: () => Date.now(),
-    deliver: (payload: WebhookPayload) => deliverWebhook(r.webhookUrl, payload),
+    deliver: (payload: WebhookPayload) =>
+      deliverWebhook(r.webhookUrl, payload, { allowPrivateHosts: r.allowPrivateHosts }),
   });
   poller.start();
 }
@@ -124,7 +120,7 @@ export function updateNotifyConfig(patch: Partial<NotifyConfigView>): NotifyConf
   const r = runtime;
   if (typeof patch.enabled === 'boolean') r.enabled = patch.enabled;
   if (typeof patch.webhookUrl === 'string' && patch.webhookUrl.length > 0) {
-    assertValidWebhookUrl(patch.webhookUrl);
+    assertValidWebhookUrl(patch.webhookUrl, { allowPrivateHosts: r.allowPrivateHosts });
     r.webhookUrl = patch.webhookUrl;
   }
   if (typeof patch.pollMs === 'number' && patch.pollMs > 0) r.pollMs = Math.floor(patch.pollMs);
@@ -156,7 +152,9 @@ export async function sendTestNotification(ctx: ServerContext): Promise<Delivery
     deepLink,
     message: `[D2 通知通道测试] ${testId}：这是一条来自 ops-console 的测试卡片，用于验证 webhook 通道与深链接。`,
   };
-  const outcome = await deliverWebhook(r.webhookUrl, payload);
+  const outcome = await deliverWebhook(r.webhookUrl, payload, {
+    allowPrivateHosts: r.allowPrivateHosts,
+  });
   const record: DeliveryRecord = {
     decisionId: testId,
     event: 'pending',

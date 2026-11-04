@@ -64,6 +64,8 @@ export interface Config {
     listRefreshMs: number;
     escalationMinutes: number;
     storeFile: string;
+    /** Dev-only escape hatch: allow loopback/private webhook targets. */
+    allowPrivateHosts: boolean;
   };
   inbound: {
     /** Shared HMAC secret for zeus -> console decision webhook. Empty disables. */
@@ -114,6 +116,7 @@ export function loadConfig(): Config {
       listRefreshMs: intEnv('OPS_NOTIFY_LIST_REFRESH_MS', 20000),
       escalationMinutes: intEnv('OPS_NOTIFY_ESCALATION_MINUTES', 15),
       storeFile: required('OPS_NOTIFY_STORE_FILE', './data/notify-deliveries.jsonl'),
+      allowPrivateHosts: boolEnv('OPS_NOTIFY_ALLOW_PRIVATE_HOSTS', false),
     },
     inbound: {
       decisionWebhookSecret: required('OPS_DECISION_WEBHOOK_SECRET', ''),

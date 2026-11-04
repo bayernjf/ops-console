@@ -28,9 +28,18 @@ import { PUT as putNotifyConfig } from '../src/pages/api/notify/config.js';
 import type { SessionPayload } from '../src/server/session.js';
 
 describe('assertValidWebhookUrl (pure)', () => {
-  it('accepts absolute http(s) URLs', () => {
+  it('accepts absolute http(s) URLs with a public host', () => {
     expect(() => assertValidWebhookUrl('https://hooks.example.com/t/secret')).not.toThrow();
-    expect(() => assertValidWebhookUrl('http://127.0.0.1:3023/hook')).not.toThrow();
+    expect(() => assertValidWebhookUrl('http://api.example.com/hook')).not.toThrow();
+  });
+
+  it('rejects loopback and private literals unless explicitly opted in', () => {
+    expect(() => assertValidWebhookUrl('http://127.0.0.1:3023/hook')).toThrow(/non-public/);
+    expect(() => assertValidWebhookUrl('http://10.0.0.5/hook')).toThrow(/non-public/);
+    expect(() => assertValidWebhookUrl('http://localhost:3023/hook')).toThrow(/localhost/);
+    expect(() =>
+      assertValidWebhookUrl('http://127.0.0.1:3023/hook', { allowPrivateHosts: true }),
+    ).not.toThrow();
   });
 
   it.each(['ftp://example.com/x', 'file:///etc/passwd', 'javascript:alert(1)', 'not a url', ''])(
