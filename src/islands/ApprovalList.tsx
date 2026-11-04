@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import AsyncState from '../components/AsyncState';
+import { loginRedirectUrl } from '../lib/safe-next';
 import type { DecisionRecord, Grade } from '../server/upstream/types';
 import { describeSla, humanizeMs } from '../server/sla';
 
@@ -48,7 +49,7 @@ export default function ApprovalList({ initial, refreshMs }: Props) {
       const url = filter === 'all' ? '/api/approvals' : `/api/approvals?grade=${encodeURIComponent(filter)}`;
       const res = await fetch(url, { headers: { Accept: 'application/json' } });
       if (res.status === 401) {
-        window.location.href = '/login?next=' + encodeURIComponent(window.location.pathname);
+        window.location.assign(loginRedirectUrl(window.location.pathname, window.location.search));
         return;
       }
       if (!res.ok) {

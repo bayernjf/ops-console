@@ -7,6 +7,10 @@
  * external host. Everything else (empty, absolute URL, any external form)
  * falls back to the caller's default in-console path.
  */
+export function loginRedirectUrl(pathname: string, search: string): string {
+  return '/login?next=' + encodeURIComponent(`${pathname}${search}`);
+}
+
 export function safeNextOr(next: string | null | undefined, fallback: string): string {
   if (!next) return fallback;
   if (!next.startsWith('/')) return fallback;
