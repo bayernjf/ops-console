@@ -19,6 +19,7 @@ const RECORD: DecisionRecord = {
   createdAt: '2026-11-01T00:00:00.000Z',
   updatedAt: '2026-11-01T00:00:00.000Z',
   auditSeq: 1,
+  approvals: [],
 };
 
 function fakeJson(status: number, body: unknown) {
