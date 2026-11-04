@@ -113,11 +113,11 @@ export class InboundEventLog {
   }
 
   /** Record an accepted delivery; returns true when it was already seen. */
-  record(row: InboundLogRow): boolean {
+  record(row: Omit<InboundLogRow, 'duplicate'>): boolean {
     const duplicate = this.seen.has(row.deliveryId);
     this.seen.add(row.deliveryId);
     mkdirSync(dirname(this.file), { recursive: true });
-    appendFileSync(this.file, `${JSON.stringify(row)}\n`);
+    appendFileSync(this.file, `${JSON.stringify({ ...row, duplicate })}\n`);
     return duplicate;
   }
 
@@ -173,7 +173,6 @@ export function handleInboundDecisionEvent(
     deliveryId: headers.deliveryId,
     receivedAt: new Date(deps.now()).toISOString(),
     event,
-    duplicate: false,
   });
 
   return {
