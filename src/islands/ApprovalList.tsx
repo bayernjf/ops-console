@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import AsyncState from '../components/AsyncState';
+import { loginRedirectUrl } from '../lib/safe-next';
 import type { DecisionRecord, Grade } from '../server/upstream/types';
 import { describeSla, humanizeMs } from '../server/sla';
 
@@ -48,7 +49,7 @@ export default function ApprovalList({ initial, refreshMs }: Props) {
       const url = filter === 'all' ? '/api/approvals' : `/api/approvals?grade=${encodeURIComponent(filter)}`;
       const res = await fetch(url, { headers: { Accept: 'application/json' } });
       if (res.status === 401) {
-        window.location.href = '/login?next=' + encodeURIComponent(window.location.pathname);
+        window.location.assign(loginRedirectUrl(window.location.pathname, window.location.search));
         return;
       }
       if (!res.ok) {
@@ -103,7 +104,8 @@ export default function ApprovalList({ initial, refreshMs }: Props) {
       {error ? (
         <AsyncState error={`${error}（上游不可达时 fail-closed）`} />
       ) : null}
-      {visible.length === 0 && !error ? (
+      {loading ? <AsyncState loading loadingText="正在刷新待审批决策…" /> : null}
+      {visible.length === 0 && !error && !loading ? (
         <AsyncState empty emptyText="暂无待审批决策（D1 awaiting_approval / D2·D3 blocked）。" />
       ) : (
         <div className="table-wrap">

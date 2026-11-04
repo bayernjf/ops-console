@@ -97,6 +97,8 @@ describe('TraceExplorer island', () => {
   afterEach(() => {
     cleanup();
     vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+    window.history.replaceState(null, '', '/');
   });
 
   it('renders the filter form with labelled controls and the aggregate meta', async () => {
@@ -153,7 +155,7 @@ describe('TraceExplorer island', () => {
     });
   });
 
-  it('shows the empty state when zeus returns no traces', () => {
+  it('shows the empty state when zeus returns no traces', async () => {
     // Mount refetch must see the same empty shape so the state is stable.
     fetchMock.mockResolvedValue(
       fakeJson(200, { traces: [], summary: { totalLatencyMs: 0, totalCostMicros: 0, errorCount: 0, count: 0 } }),
@@ -164,7 +166,9 @@ describe('TraceExplorer island', () => {
         refreshMs={20000}
       />,
     );
-    expect(screen.getByRole('status').textContent).toContain('当前过滤条件下没有 trace');
+    await waitFor(() =>
+      expect(screen.getByRole('status').textContent).toContain('当前过滤条件下没有 trace'),
+    );
   });
 
   it('announces failures via role=alert and keeps prior results (fail-closed UI)', async () => {
@@ -176,5 +180,11 @@ describe('TraceExplorer island', () => {
     expect(alert.textContent).toContain('503 UPSTREAM_UNAVAILABLE');
     // Prior results stay on screen; the console never fabricates a clean slate.
     expect(screen.getByText('run-1')).toBeTruthy();
+  });
+
+  it('shows the loading state while a refresh is in flight', async () => {
+    fetchMock.mockReturnValue(new Promise<FakeResponse>(() => {}));
+    render(<TraceExplorer initial={RESULT} refreshMs={20000} />);
+    expect(await screen.findByText('正在刷新 trace…')).toBeTruthy();
   });
 });

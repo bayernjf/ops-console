@@ -1,5 +1,6 @@
 import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
 import AsyncState from '../components/AsyncState';
+import { loginRedirectUrl } from '../lib/safe-next';
 import type {
   TraceQueryResult,
   TraceSpan,
@@ -156,7 +157,7 @@ export default function TraceExplorer({ initial, refreshMs }: Props) {
         headers: { Accept: 'application/json' },
       });
       if (res.status === 401) {
-        window.location.href = '/login?next=' + encodeURIComponent(window.location.pathname);
+        window.location.assign(loginRedirectUrl(window.location.pathname, window.location.search));
         return;
       }
       if (!res.ok) {
@@ -303,7 +304,9 @@ export default function TraceExplorer({ initial, refreshMs }: Props) {
         <AsyncState error={`${error}（上游不可达时 fail-closed）`} />
       ) : null}
 
-      {result.traces.length === 0 && !error ? (
+      {loading ? <AsyncState loading loadingText="正在刷新 trace…" /> : null}
+
+      {result.traces.length === 0 && !error && !loading ? (
         <AsyncState
           empty
           emptyText="当前过滤条件下没有 trace：zeus 尚未导出（需开启 ZEUS_DECISION_TRACE_FILE）或不匹配过滤条件。"

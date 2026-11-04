@@ -7,13 +7,13 @@
  *  - valid HMAC signature  -> 200 accepted, event logged
  *  - wrong secret / tampered body -> 401
  *  - missing delivery-id    -> 400
- *  - replay same delivery-id -> 200 duplicate, not double-logged
+ *  - replay same delivery-id -> 200 duplicate, flagged as duplicate in JSONL
  *  - "restart" reload from JSONL still treats the delivery-id as seen
  *  - secret unconfigured    -> fail closed (503)
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createServer, type Server } from 'node:http';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
@@ -110,6 +110,15 @@ describe('inbound decision webhook', () => {
       expect(replayRes.status).toBe(200);
       const replayBody = (await replayRes.json()) as { duplicate: boolean };
       expect(replayBody.duplicate).toBe(true);
+
+      // The durable log must carry the real dedupe signal, not a hardcoded false.
+      const rows = readFileSync(file, 'utf8')
+        .trim()
+        .split('\n')
+        .map((line) => JSON.parse(line) as { deliveryId: string; duplicate: boolean });
+      expect(rows.filter((row) => row.deliveryId === deliveryId)).toHaveLength(2);
+      expect(rows[0]?.duplicate).toBe(false);
+      expect(rows[1]?.duplicate).toBe(true);
     } finally {
       server.close();
     }

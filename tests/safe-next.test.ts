@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { safeNextOr } from '../src/lib/safe-next.js';
+import { loginRedirectUrl, safeNextOr } from '../src/lib/safe-next.js';
 
 /**
  * OC-3 regression: the login page must never redirect off-origin via the
@@ -40,5 +40,20 @@ describe('safeNextOr', () => {
     // "/..//evil" stays on-origin as a path; only the "//" and "/\" prefixes
     // are scheme-relative traps.
     expect(safeNextOr('/..//app', FALLBACK)).toBe('/..//app');
+  });
+});
+
+describe('loginRedirectUrl', () => {
+  it('keeps the full path and query so the user returns to the same view', () => {
+    expect(loginRedirectUrl('/app/approvals', '?grade=D3')).toBe(
+      '/login?next=%2Fapp%2Fapprovals%3Fgrade%3DD3',
+    );
+    expect(loginRedirectUrl('/app/traces', '?agent=atlas&limit=25')).toBe(
+      '/login?next=%2Fapp%2Ftraces%3Fagent%3Datlas%26limit%3D25',
+    );
+  });
+
+  it('encodes an empty query without inventing one', () => {
+    expect(loginRedirectUrl('/app/refunds', '')).toBe('/login?next=%2Fapp%2Frefunds');
   });
 });

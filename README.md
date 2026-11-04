@@ -59,10 +59,12 @@ bash scripts/seed-dev.sh         # 一次性：幂等建沙箱渠道账号 + 演
 bash scripts/verify-batch1.sh    # 401/403、D3 owner-only、审批与 zeus 一致、看板口径：PASS 29/0
 bash scripts/verify-notify.sh    # 挂起→投递(≤60s)→幂等→深链接 200（脚本自起 3023 接收端）
 bash scripts/verify-batch2.sh    # 上架 D3/拉单/库存/退款 D2 受控写闭环：PASS 21/0
+bash scripts/verify-batch3.sh    # zeus→console 签名推送/重播幂等/traces 页面：PASS 11/0
 ```
 
 ## 状态
 - **第一批（认证/RBAC、只读看板、D1–D3 审批、通知深链接）开发完成 + 本地验证全绿**。
 - **第二批（受控写：商品/订单/退款/内容/库存只读页 + 上架提交/退款审批/库存手工调整）开发完成 + 本地验证全绿**。
-- 最终：Vitest 40/40、astro check 0 error、eslint 0、build 成功；`verify-batch1.sh` 29/0、`verify-notify.sh` OK、`verify-batch2.sh` 21/0。
+- **第三批（Tier0 M2 W2-5：Agent 追踪页 `/app/traces`）开发完成 + 本地验证全绿**。
+- 最终：Vitest **191/191（26 个测试文件）**、astro check 0 error、eslint 0、build 成功；`verify-batch1.sh` 29/0、`verify-notify.sh` OK、`verify-batch2.sh` 21/0、`verify-batch3.sh` 11/0（四个 verify 脚本的数字来自 handoff 记录，本轮未复跑）。
 - **GATE-M8 未过门**：连续 7 天现网运营、真实 webhook 触达、真实店铺/云部署依赖外部条件，不在本轮范围。
