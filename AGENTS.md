@@ -41,7 +41,7 @@ ops-console/
       notify/                # 通知引擎（轮询/幂等/升级/投递）
     pages/
       login.astro 403.astro index.astro healthz.ts
-      app/                   # approvals / dashboard / products / orders / refunds / content / inventory / settings / notifications
+      app/                   # approvals / dashboard / products / orders / refunds / content / inventory / settings / notifications / traces
       api/                   # auth / approvals / policy / notify / 受控写 端点
     layouts/ConsoleLayout.astro
     styles/tokens.css
