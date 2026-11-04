@@ -304,7 +304,9 @@ export default function TraceExplorer({ initial, refreshMs }: Props) {
         <AsyncState error={`${error}（上游不可达时 fail-closed）`} />
       ) : null}
 
-      {result.traces.length === 0 && !error ? (
+      {loading ? <AsyncState loading loadingText="正在刷新 trace…" /> : null}
+
+      {result.traces.length === 0 && !error && !loading ? (
         <AsyncState
           empty
           emptyText="当前过滤条件下没有 trace：zeus 尚未导出（需开启 ZEUS_DECISION_TRACE_FILE）或不匹配过滤条件。"

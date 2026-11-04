@@ -104,7 +104,8 @@ export default function ApprovalList({ initial, refreshMs }: Props) {
       {error ? (
         <AsyncState error={`${error}（上游不可达时 fail-closed）`} />
       ) : null}
-      {visible.length === 0 && !error ? (
+      {loading ? <AsyncState loading loadingText="正在刷新待审批决策…" /> : null}
+      {visible.length === 0 && !error && !loading ? (
         <AsyncState empty emptyText="暂无待审批决策（D1 awaiting_approval / D2·D3 blocked）。" />
       ) : (
         <div className="table-wrap">
