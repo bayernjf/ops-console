@@ -59,10 +59,6 @@ function secureFlag(): string {
   return process.env.OPS_PUBLIC_BASE_URL?.startsWith('https://') ? '; Secure' : '';
 }
 
-export function setSessionCookie(token: string): string {
-  return `${SESSION_COOKIE}=${token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${Math.floor(SESSION_TTL_MS / 1000)}${secureFlag()}`;
-}
-
 export function clearSessionCookie(): string {
   return `${SESSION_COOKIE}=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0${secureFlag()}`;
 }
