@@ -1,5 +1,7 @@
 # ops-console · handoff
 
+> **2026-11-06 补登：dev → main 已于 2026-11-05 经 PR #14 合并（合并前 CI 全绿）；实测 origin/main 与 origin/dev 内容完全一致（git diff 为空）。**
+
 > 规则：完成项及时登记；缺口分"内核缺口（需回到 zeus/commerce 做）"与"外部验收项"。
 
 ## 2026-10-31 Tier0 评审 P2 收尾（a11y 补齐 + 中间件/路由测试）
