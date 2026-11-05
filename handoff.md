@@ -157,8 +157,8 @@
 ## 可推送状态（给主线 owner）
 - 已在 `dev` 分支整理为**单一职责原子提交序列**（scaffold → 主题/布局 → 上游聚合层 → 认证/RBAC → 审批工作台 → 只读看板 → webhook 通知 → 本地联调脚本 → 文档；第二批再追加：受控写服务/端点 → 运营只读页与交互岛 → 第二批 seed/验证脚本 → 文档），废弃的 server+web 双包骨架**未进入历史**，public 第一版即单进程 SSR 形态，且两批功能同处一个干净历史。
 - 仓内只有 `.env.example` 占位，**无任何真实密钥**；`.env`、`data/`、`*.db`、`*.jsonl` 已 gitignore。
-- 未建 remote、未 `gh repo create`、未 `git push`（按 owner 指令由主线建 public remote、做密钥扫描后推送 dev，main 待第一批稳定后经 PR 合并）。
-- 规划仓地址：github.com/bayernjf/ops-console（尚未创建）。
+- ~~未建 remote、未 `gh repo create`、未 `git push`~~ **2026-11-05 复核：remote 已建、dev 已推送、PR 已合并**——`origin` = `git@github.com:bayernjf/ops-console.git`，`git ls-remote` 实测远程 `dev`/`main` 均存在，本地 `dev` 与 `origin/dev` 同步、无未推送提交；`gh pr list --state all` 实测 PR #1~#12 已全部合并（均 MERGED，含 2026-11-04 的 #10/#11/#12）。
+- 仓地址：github.com/bayernjf/ops-console（**已创建**，非规划态）。
 
 ## 外部验收项（本地无法完成，不冒充过门）
 - GATE-M8：连续 7 天现网运营全部在控制台完成、无人直接调 API。
