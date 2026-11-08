@@ -20,13 +20,21 @@ try {
 }
 ---
 <ConsoleLayout title="订单" session={session}>
-  {loadError ? <div class="panel panel--error"><p>上游不可达：{loadError}</p></div> : null}
+  {loadError ? (
+    <div class="panel panel--error">
+      <p>上游不可达：{loadError}</p>
+      <p class="hint">
+        订单与渠道账号都没有加载成功，拉单表单已隐藏，下面也不显示订单表；这不代表没有订单。
+        修复上游后 <a href="/app/orders">刷新本页</a>。
+      </p>
+    </div>
+  ) : null}
 
-  <OrdersOps client:load accounts={accounts} />
+  {loadError ? null : <OrdersOps client:load accounts={accounts} />}
 
   <div class="panel">
     <h3>订单列表（commerce 透传）</h3>
-    {orders.length === 0 ? <p class="hint">暂无订单，先通过上方拉单从渠道同步。</p> : (
+    {loadError ? null : orders.length === 0 ? <p class="hint">暂无订单，先通过上方拉单从渠道同步。</p> : (
       <table class="data-table">
         <thead><tr><th scope="col">ID</th><th scope="col">渠道</th><th scope="col">外部单号</th><th scope="col">状态</th><th scope="col">金额</th><th scope="col">创建</th><th scope="col">详情</th></tr></thead>
         <tbody>
