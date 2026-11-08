@@ -190,6 +190,24 @@
 .async-state__retry { margin-top: 2px; }
 @keyframes async-state-spin { to { transform: rotate(360deg); } }
 
+/* Stale-data banner: a poll failure keeps the last successful table and adds
+ * this non-blocking warning instead of replacing the list (checklist C7). */
+.stale-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--alert);
+  border-radius: 8px;
+  background: var(--steel-850);
+  color: var(--alert);
+  font-size: 13px;
+}
+.stale-banner__text { line-height: 1.5; }
+
 /* ---- Mobile breakpoints (batch 1: approvals list + traces) ----
  * Desktop (>=1024px) rendering is unchanged; these rules only relax
  * tap targets and filter sizing on narrow viewports. */

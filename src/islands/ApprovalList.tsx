@@ -14,6 +14,11 @@ import { describeSla, humanizeMs } from '../server/sla';
 interface Props {
   initial: DecisionRecord[];
   refreshMs: number;
+  /**
+   * Server-side load failure for `initial`. Without it the island would render
+   * a successful-but-empty list, which is indistinguishable from "no approvals".
+   */
+  initialError?: string | null;
 }
 
 type Filter = 'all' | Grade;
@@ -35,11 +40,11 @@ function formatTime(iso: string): string {
   return Number.isNaN(d.getTime()) ? iso : d.toLocaleString('zh-CN', { hour12: false });
 }
 
-export default function ApprovalList({ initial, refreshMs }: Props) {
+export default function ApprovalList({ initial, refreshMs, initialError = null }: Props) {
   const [records, setRecords] = useState<DecisionRecord[]>(initial);
   const [filter, setFilter] = useState<Filter>('all');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(initialError);
   const [now, setNow] = useState(() => Date.now());
   const timerRef = useRef<number | null>(null);
 
@@ -84,6 +89,10 @@ export default function ApprovalList({ initial, refreshMs }: Props) {
 
   const visible = filter === 'all' ? records : records.filter((r) => r.grade === filter);
   const filterLabel = filter === 'all' ? '全部待办' : filter;
+  // A failure with no data to fall back on is blocking; with data it is a stale
+  // warning, so a transient poll error never wipes the table (checklist C7).
+  const blockingError = error !== null && records.length === 0;
+  const staleError = error !== null && records.length > 0;
 
   return (
     <div className="approval-list">
@@ -102,11 +111,24 @@ export default function ApprovalList({ initial, refreshMs }: Props) {
         </button>
         <span className="list-meta" aria-live="polite">每 20s 自动刷新 · 共 {visible.length} 条</span>
       </div>
-      {error ? (
-        <AsyncState error={`${error}（上游不可达时 fail-closed）`} />
+      {blockingError ? (
+        <AsyncState
+          error={`${error}（上游不可达时 fail-closed）`}
+          onRetry={() => void refresh()}
+        />
+      ) : null}
+      {staleError ? (
+        <div className="stale-banner" role="status">
+          <span className="stale-banner__text">
+            数据可能过期：最近一次刷新失败（{error}），下表为上次成功加载的结果。
+          </span>
+          <button className="btn btn--sm" onClick={() => void refresh()} disabled={loading}>
+            {loading ? '重试中…' : '重试'}
+          </button>
+        </div>
       ) : null}
       {loading ? <AsyncState loading loadingText="正在刷新待审批决策…" /> : null}
-      {visible.length === 0 && !error && !loading ? (
+      {blockingError ? null : visible.length === 0 && !error && !loading ? (
         <div className="approval-empty" role="status">
           <p className="approval-empty__title">
             当前筛选「{filterLabel}」没有待审批项
