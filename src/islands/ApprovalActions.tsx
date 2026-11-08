@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import type { KeyboardEvent } from 'react';
 import type { DecisionRecord, Grade } from '../server/upstream/types';
 
 /**
@@ -19,6 +20,13 @@ export default function ApprovalActions({ decision, role }: Props) {
   const [busy, setBusy] = useState<null | 'approve' | 'reject'>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
+  const statusRef = useRef<HTMLParagraphElement | null>(null);
+
+  // Move focus to the verdict message so a keyboard-only operator hears the
+  // result without hunting for it (and screen readers announce it).
+  useEffect(() => {
+    if (message) statusRef.current?.focus();
+  }, [message]);
 
   const pending = PENDING_STATUSES.has(decision.status);
   const grade: Grade = decision.grade;
@@ -44,8 +52,9 @@ export default function ApprovalActions({ decision, role }: Props) {
       setMessage(
         `已提交${verdict === 'approve' ? '批准' : '驳回'}：zeus 返回 status=${settled.status ?? '?'} grade=${settled.grade ?? '?'}。页面即将刷新…`,
       );
-      // Refresh after the action so the settled record is shown.
-      window.setTimeout(() => window.location.reload(), 900);
+      // Refresh after the action so the settled record is shown. Long enough
+      // for the focused status message to be read before navigation.
+      window.setTimeout(() => window.location.reload(), 1600);
     } catch (thrown) {
       setFailed(true);
       setMessage(thrown instanceof Error ? thrown.message : String(thrown));
@@ -66,6 +75,13 @@ export default function ApprovalActions({ decision, role }: Props) {
     );
   }
 
+  function onCommentKeyDown(event: KeyboardEvent<HTMLTextAreaElement>): void {
+    if (event.key !== 'Enter' || !(event.metaKey || event.ctrlKey)) return;
+    event.preventDefault();
+    if (locked || busy !== null) return;
+    void submit(event.shiftKey ? 'reject' : 'approve');
+  }
+
   return (
     <div className="approval-actions">
       <label className="comment-label" htmlFor="approval-comment">
@@ -79,6 +95,7 @@ export default function ApprovalActions({ decision, role }: Props) {
         value={comment}
         disabled={locked}
         onChange={(e) => setComment(e.target.value)}
+        onKeyDown={onCommentKeyDown}
       />
       {locked ? (
         <p className="lock-note">
@@ -91,6 +108,7 @@ export default function ApprovalActions({ decision, role }: Props) {
         <button
           className="btn btn--approve"
           disabled={!allowed || busy !== null}
+          aria-keyshortcuts="Control+Enter Meta+Enter"
           onClick={() => void submit('approve')}
         >
           {busy === 'approve' ? '提交中…' : '批准'}
@@ -98,13 +116,27 @@ export default function ApprovalActions({ decision, role }: Props) {
         <button
           className="btn btn--reject"
           disabled={!allowed || busy !== null}
+          aria-keyshortcuts="Control+Shift+Enter Meta+Shift+Enter"
           onClick={() => void submit('reject')}
         >
           {busy === 'reject' ? '提交中…' : '驳回'}
         </button>
       </div>
+      {locked ? null : (
+        <p className="keyboard-hint">
+          键盘：Tab 依次到「批准 / 驳回」；在备注框内按 <kbd>⌘/Ctrl</kbd>+<kbd>Enter</kbd>
+          批准，加 <kbd>Shift</kbd> 为驳回。
+        </p>
+      )}
       {message ? (
-        <p className={failed ? 'action-failed' : 'action-ok'} role={failed ? 'alert' : 'status'}>{message}</p>
+        <p
+          ref={statusRef}
+          tabIndex={-1}
+          className={failed ? 'action-failed' : 'action-ok'}
+          role={failed ? 'alert' : 'status'}
+        >
+          {message}
+        </p>
       ) : null}
     </div>
   );

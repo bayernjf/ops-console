@@ -83,6 +83,7 @@ export default function ApprovalList({ initial, refreshMs }: Props) {
   }, [refresh]);
 
   const visible = filter === 'all' ? records : records.filter((r) => r.grade === filter);
+  const filterLabel = filter === 'all' ? '全部待办' : filter;
 
   return (
     <div className="approval-list">
@@ -106,7 +107,27 @@ export default function ApprovalList({ initial, refreshMs }: Props) {
       ) : null}
       {loading ? <AsyncState loading loadingText="正在刷新待审批决策…" /> : null}
       {visible.length === 0 && !error && !loading ? (
-        <AsyncState empty emptyText="暂无待审批决策（D1 awaiting_approval / D2·D3 blocked）。" />
+        <div className="approval-empty" role="status">
+          <p className="approval-empty__title">
+            当前筛选「{filterLabel}」没有待审批项
+          </p>
+          <ul className="approval-empty__list">
+            <li>
+              数据来自 zeus 决策流：D1 为 <code>awaiting_approval</code>，D2·D3 为 <code>blocked</code>。
+            </li>
+            <li>上游产生命中策略的新决策后会出现在这里；每 20 秒自动刷新，也可点「手动刷新」。</li>
+            <li>
+              预期有数据却是空的，先到 <a href="/app/dashboard">看板</a> 确认上游是否已收到决策。
+            </li>
+            {filter === 'all' ? (
+              <li>三个级别当前都没有记录。</li>
+            ) : (
+              <li>
+                当前只显示 {filter}；切回「全部待办」可查看其他级别。
+              </li>
+            )}
+          </ul>
+        </div>
       ) : (
         <div className="table-wrap">
         <table className="approval-table">
