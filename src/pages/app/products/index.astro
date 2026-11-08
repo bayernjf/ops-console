@@ -20,13 +20,21 @@ try {
 }
 ---
 <ConsoleLayout title="商品" session={session}>
-  {loadError ? <div class="panel panel--error"><p>上游不可达：{loadError}</p></div> : null}
+  {loadError ? (
+    <div class="panel panel--error">
+      <p>上游不可达：{loadError}</p>
+      <p class="hint">
+        商品与渠道账号都没有加载成功，创建/上架表单已隐藏，下面也不显示商品表；这不代表没有商品。
+        修复上游后 <a href="/app/products">刷新本页</a>。
+      </p>
+    </div>
+  ) : null}
 
-  <ProductOps client:load products={products} accounts={accounts} role={session.role} />
+  {loadError ? null : <ProductOps client:load products={products} accounts={accounts} role={session.role} />}
 
   <div class="panel">
     <h3>商品列表（commerce 透传）</h3>
-    {products.length === 0 ? <p class="hint">暂无商品，先在上方创建。</p> : (
+    {loadError ? null : products.length === 0 ? <p class="hint">暂无商品，先在上方创建。</p> : (
       <table class="data-table">
         <thead><tr><th>ID</th><th>标题</th><th>状态</th><th>渠道账号</th><th>SKU</th><th>详情</th></tr></thead>
         <tbody>

@@ -21,13 +21,21 @@ try {
 const skus = products.flatMap((p: any) => (p.skus ?? []).map((s: any) => ({ id: s.id, skuCode: s.skuCode })));
 ---
 <ConsoleLayout title="库存" session={session}>
-  {loadError ? <div class="panel panel--error"><p>上游不可达：{loadError}</p></div> : null}
+  {loadError ? (
+    <div class="panel panel--error">
+      <p>上游不可达：{loadError}</p>
+      <p class="hint">
+        库存与商品列表都没有加载成功，下面不显示库存表；这不代表没有数据。
+        修复上游后 <a href="/app/inventory">刷新本页</a>。
+      </p>
+    </div>
+  ) : null}
 
-  {skus.length > 0 ? <InventoryOps client:load skus={skus} /> : null}
+  {loadError ? null : skus.length > 0 ? <InventoryOps client:load skus={skus} /> : null}
 
   <div class="panel">
     <h3>库存列表（commerce 透传）</h3>
-    {inventory.length === 0 ? <p class="hint">暂无库存记录。</p> : (
+    {loadError ? null : inventory.length === 0 ? <p class="hint">暂无库存记录。</p> : (
       <table class="data-table">
         <thead><tr><th scope="col">SKU ID</th><th scope="col">可用数量</th><th scope="col">更新时间</th></tr></thead>
         <tbody>
