@@ -1,5 +1,12 @@
 # AGENTS.md — ops-console 工程规则（给任何在本仓工作的智能体/人）
 
+## 本地容器运行时（macOS）
+
+本机 macOS 开发只用 OrbStack，不再使用 Docker Desktop。**本仓自身不依赖容器**：
+服务用 `node --experimental-sqlite` 跑，数据落在本地 SQLite 文件，不需要
+Postgres / Redis。它读取或调用的 Tier 0 服务才需要 OrbStack，完整约定见
+`../bayjf/AGENTS.md` 的「本地容器运行时约定（macOS）」。
+
 ## 这是什么
 Tier0 产品族的**面向人运营工作台**（M8）。形态：**单进程 Astro 7 SSR（node adapter）+ React 19 交互岛**。Astro 服务端聚合 zeus 决策/组织 API（`/api/v1/*`）与 commerce-os API（`/api/v1/*`），页面服务端渲染，审批按钮/表单/列表刷新等少量交互用 React 岛。**服务端只做聚合与鉴权透传，不持有业务规则**；关掉控制台，zeus/commerce 底层 API 不受影响。
 
