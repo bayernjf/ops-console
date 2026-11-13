@@ -23,6 +23,9 @@ Tier0 产品族的**运营控制台**（M8）：单进程 SSR 工作台，让日
 
 ## 本地运行
 ```bash
+# 前置：Node 22+（见 .nvmrc；本机默认 shell 的 fnm 当前指向 Node 20，
+# 直接 npm run dev 会报 `bad option: --experimental-strip-types`，
+# 需先 `fnm use` 切到 22/24）
 # 前置：先在 ../zeus 与 ../commerce-os 执行过 npm install 与 npm run build
 cp .env.example .env          # 本地占位账号/token，勿提交真实密钥
 npm install
