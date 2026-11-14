@@ -73,9 +73,13 @@ export async function callJson<T>(
   const text = await response.text();
   const parsed: unknown = text ? (JSON.parse(text) as unknown) : undefined;
   if (!response.ok) {
-    const body = parsed as UpstreamErrorBody | undefined;
-    const code = body?.error?.code ?? 'UPSTREAM_ERROR';
-    const message = body?.error?.message ?? `upstream ${response.status}`;
+    // Two upstream shapes exist: commerce nests {error:{code,message}}, zeus
+    // puts {code,message,retryable} at the top level. Read both so a protocol
+    // refusal (e.g. "round 1 is proposal-only") reaches the operator intact
+    // instead of collapsing into a generic UPSTREAM_ERROR.
+    const body = parsed as (UpstreamErrorBody & { code?: string; message?: string }) | undefined;
+    const code = body?.error?.code ?? body?.code ?? 'UPSTREAM_ERROR';
+    const message = body?.error?.message ?? body?.message ?? `upstream ${response.status}`;
     throw new UpstreamError(response.status, code, message, parsed);
   }
   return parsed as T;
