@@ -18,7 +18,10 @@
  * Env:
  *   OPS_DATA_DIR      source directory (default ./data)
  *   BACKUP_DIR        snapshot root (default ./backups)
- *   RETENTION_DAYS    delete snapshots older than N days (default 7)
+ *   RETENTION_DAYS    delete snapshots older than N days (default 14; the
+ *                     tier0 retention policy keeps 14 daily + 8 weekly, and
+ *                     the weekly tier is handled by the shared backup job —
+ *                     this single-process pruner only enforces the daily one)
  *
  * Usage:
  *   node --experimental-strip-types scripts/backup-ops-console.ts
@@ -103,7 +106,7 @@ export type BackupResult = { dir: string; manifest: SnapshotManifest; pruned: st
 export function backup(options: BackupOptions = {}): BackupResult {
   const dataDir = resolve(options.dataDir ?? './data');
   const backupDir = resolve(options.backupDir ?? './backups');
-  const retentionDays = options.retentionDays ?? 7;
+  const retentionDays = options.retentionDays ?? 14;
   const now = options.now ?? new Date();
 
   const sources = STORES.map(name => join(dataDir, name)).filter(path => existsSync(path));
@@ -145,7 +148,7 @@ if (isMain) {
     const result = backup({
       dataDir: process.env.OPS_DATA_DIR ?? './data',
       backupDir: process.env.BACKUP_DIR ?? './backups',
-      retentionDays: Number(process.env.RETENTION_DAYS ?? '7'),
+      retentionDays: Number(process.env.RETENTION_DAYS ?? '14'),
     });
     console.log(`backup -> ${result.dir} (${result.manifest.stores.length} store(s))`);
     if (result.pruned.length > 0) console.log(`pruned -> ${result.pruned.join(', ')}`);
