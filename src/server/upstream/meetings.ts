@@ -1,7 +1,7 @@
 // Thin typed client over zeus Meeting API v1. The console never writes meeting
 // JSON: every mutation goes through zeus, which owns the protocol guards.
 
-import { callJson } from './http.js';
+import { callJson, UpstreamError } from './http.js';
 import type { Config } from '../config.js';
 
 export type MeetingEvidence = { kind: string; ref: string; note?: string };
@@ -83,6 +83,40 @@ export class MeetingsUpstream {
         rebuts: input.rebuts ?? [],
       },
     });
+  }
+
+  /**
+   * Markdown minutes. Kept outside callJson because that helper parses JSON;
+   * this response is plain text/markdown and goes straight to the browser as a
+   * download.
+   */
+  async markdown(id: string): Promise<string> {
+    const url = new URL(`/api/v1/meetings/${encodeURIComponent(id)}/markdown`, this.baseUrl);
+    let response: Response;
+    try {
+      response = await fetch(url, {
+        headers: { Authorization: `Bearer ${this.token}`, Accept: 'text/markdown' },
+        signal: AbortSignal.timeout(15000),
+      });
+    } catch (thrown) {
+      const cause = thrown instanceof Error ? thrown.message : String(thrown);
+      console.error(`[ops-console] upstream ${url.toString()} unreachable: ${cause}`);
+      throw new UpstreamError(503, 'UPSTREAM_UNAVAILABLE', 'upstream unavailable');
+    }
+    const text = await response.text();
+    if (!response.ok) {
+      let code = 'UPSTREAM_ERROR';
+      let message = `upstream ${response.status}`;
+      try {
+        const body = JSON.parse(text) as { code?: string; message?: string };
+        code = body.code ?? code;
+        message = body.message ?? message;
+      } catch {
+        // Non-JSON error body: keep the generic code, the status is in the message.
+      }
+      throw new UpstreamError(response.status, code, message);
+    }
+    return text;
   }
 
   async advance(id: string): Promise<MeetingDocument> {

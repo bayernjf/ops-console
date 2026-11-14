@@ -67,4 +67,13 @@ describe('meetings upstream client', () => {
       expect((thrown as UpstreamError).message).toContain('proposal-only');
     }
   });
+
+  it('passes the minutes through as plain markdown', async () => {
+    stubFetch(() => new Response('# 会议\n\n## 决策', {
+      status: 200,
+      headers: { 'Content-Type': 'text/markdown; charset=utf-8' },
+    }));
+    const api = new MeetingsUpstream(BASE, TOKEN);
+    await expect(api.markdown('m1')).resolves.toContain('## 决策');
+  });
 });

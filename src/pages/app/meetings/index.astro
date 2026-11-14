@@ -161,6 +161,7 @@ const allClaims = detail ? detail.utterances.flatMap(utterance => utterance.clai
               <input type="hidden" name="id" value={detail.id} />
               <button type="submit">推进到下一轮</button>
             </form>
+            <a class="button" href={`/api/meetings/${detail.id}/markdown`}>下载纪要（Markdown）</a>
           </div>
 
           <h3>发言</h3>
@@ -321,6 +322,7 @@ const allClaims = detail ? detail.utterances.flatMap(utterance => utterance.clai
   .check-row { display: flex; gap: 12px; align-items: baseline; flex-wrap: wrap; }
   fieldset { border: var(--hair); border-radius: 4px; padding: 8px; }
   button { padding: 5px 12px; border-radius: 4px; border: var(--hair); background: var(--steel-800); color: inherit; font: inherit; cursor: pointer; }
-  button:hover { background: var(--steel-700, var(--steel-800)); }
+  button:hover, .button:hover { background: var(--steel-700, var(--steel-800)); }
+  .button { display: inline-block; padding: 5px 12px; border-radius: 4px; border: var(--hair); background: var(--steel-800); color: inherit; text-decoration: none; font-size: 13px; }
   .actions { display: flex; gap: 8px; }
 </style>
