@@ -47,6 +47,13 @@ npm run build       # SSR 构建（dist/）
 npm test            # Vitest（RBAC/契约/通知本地端到端）
 ```
 
+## 备份
+
+`npm run backup`（`scripts/backup-ops-console.ts`）快照两个 append-only JSONL
+（通知投递账本、决策 webhook 日志）到 `backups/`，逐文件校验行数与 SHA-256，
+默认保留 7 天；缺源文件或摘要不一致即非零退出。统一备份目录与恢复演练记录见
+`~/000mycodes-backups/README.md`。当前未挂 launchd 定时，需手动执行。
+
 ## 文档
 - `CONTRACT.md`：页面/端点/交互岛/服务端模块的冻结契约。
 - `AGENTS.md`：工程规则与硬边界。
@@ -69,5 +76,5 @@ bash scripts/verify-batch3.sh    # zeus→console 签名推送/重播幂等/trac
 - **第一批（认证/RBAC、只读看板、D1–D3 审批、通知深链接）开发完成 + 本地验证全绿**。
 - **第二批（受控写：商品/订单/退款/内容/库存只读页 + 上架提交/退款审批/库存手工调整）开发完成 + 本地验证全绿**。
 - **第三批（Tier0 M2 W2-5：Agent 追踪页 `/app/traces`）开发完成 + 本地验证全绿**。
-- 最终：Vitest **191/191（26 个测试文件）**、astro check 0 error、eslint 0、build 成功；`verify-batch1.sh` 29/0、`verify-notify.sh` OK、`verify-batch2.sh` 21/0、`verify-batch3.sh` 11/0（四个 verify 脚本的数字来自 handoff 记录，本轮未复跑）。
+- 最终：Vitest **205/205（28 个测试文件，2026-11-14 实测）**、astro check 0 error、eslint 0、build 成功；`verify-batch1.sh` 29/0、`verify-notify.sh` OK、`verify-batch2.sh` 21/0、`verify-batch3.sh` 11/0（四个 verify 脚本的数字来自 handoff 记录，本轮未复跑）。
 - **GATE-M8 未过门**：连续 7 天现网运营、真实 webhook 触达、真实店铺/云部署依赖外部条件，不在本轮范围。
