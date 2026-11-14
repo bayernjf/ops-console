@@ -48,7 +48,7 @@ export type MeetingSummary = {
 export type SayInput = {
   speakerId: string;
   stance: MeetingUtterance['stance'];
-  claims: Array<{ text: string; evidence?: MeetingEvidence[] }>;
+  claims: Array<{ id?: string; text: string; evidence?: MeetingEvidence[] }>;
   rebuts?: string[];
   kind?: 'human' | 'agent';
 };

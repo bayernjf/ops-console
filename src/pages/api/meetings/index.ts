@@ -53,13 +53,15 @@ export const POST: APIRoute = async ({ request, locals, redirect }) => {
     if (!id) return back(undefined, '缺少会议 id');
 
     if (action === 'say') {
-      const meeting = await api.get(id);
+      await api.get(id);
       const speakerId = String(form.get('speaker') ?? '').trim() || operator;
       const stance = String(form.get('stance') ?? 'propose') as 'propose' | 'challenge' | 'support' | 'note';
       const claimText = String(form.get('claimText') ?? '').trim();
       const evidenceRef = String(form.get('evidenceRef') ?? '').trim();
       const evidenceKind = String(form.get('evidenceKind') ?? 'fact').trim() || 'fact';
       const rebuts = form.getAll('rebut').map(value => String(value)).filter(value => value.length > 0);
+      // Claim ids are the meeting document's business, not the form's: zeus
+      // allocates the next `cN` and rebuts address those ids.
       const claims = claimText.length > 0 || evidenceRef.length > 0
         ? [{
           text: claimText,
