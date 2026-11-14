@@ -1,4 +1,4 @@
-import { mkdtempSync, mkdirSync, readFileSync, utimesSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, readFileSync, readdirSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -53,5 +53,24 @@ describe('ops-console durable-state backup (D1-1)', () => {
     const removed = pruneSnapshots(backups, 7, NOW.getTime());
     expect(removed).toEqual(['ops-console-old']);
     expect(() => readFileSync(join(freshDir, 'missing'), 'utf8')).toThrow();
+  });
+
+  it('defaults retention to 14 days (tier0 daily window)', () => {
+    const root = mkdtempSync(join(tmpdir(), 'ops-backup-default-'));
+    const dataDir = join(root, 'data');
+    const backups = join(root, 'backups');
+    seedStores(dataDir);
+    // First snapshot, backdated 10 days (inside the 14-day default, outside
+    // the old 7-day window).
+    const firstRun = new Date('2026-11-04T06:30:00Z');
+    backup({ dataDir, backupDir: backups, now: firstRun });
+    const [snapshot] = readdirSync(backups);
+    const tenDaysAgo = new Date('2026-11-04T06:30:00Z');
+    const snapshotPath = join(backups, snapshot!);
+    utimesSync(snapshotPath, tenDaysAgo, tenDaysAgo);
+    // A second, current run applies default retention. A 7-day default would
+    // prune the 10-day snapshot; the 14-day default must keep it.
+    const result = backup({ dataDir, backupDir: backups, now: NOW });
+    expect(result.pruned).toEqual([]);
   });
 });
