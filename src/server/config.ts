@@ -57,6 +57,10 @@ export interface Config {
   zeus: { baseUrl: string; token: string };
   commerce: { baseUrl: string; token: string };
   publicBaseUrl: string;
+  meetings: {
+    /** Local meeting store written by zeus `npm run meeting` (JSON per meeting). */
+    dir: string;
+  };
   notify: {
     enabled: boolean;
     webhookUrl: string;
@@ -109,6 +113,9 @@ export function loadConfig(): Config {
       token: requiredSecret('COMMERCE_API_TOKEN'),
     },
     publicBaseUrl: required('OPS_PUBLIC_BASE_URL', 'http://127.0.0.1:3022'),
+    meetings: {
+      dir: required('OPS_MEETING_DIR', './data/meetings'),
+    },
     notify: {
       enabled: boolEnv('OPS_NOTIFY_ENABLED', true),
       webhookUrl: required('OPS_NOTIFY_WEBHOOK_URL', 'http://127.0.0.1:3023/hook'),
