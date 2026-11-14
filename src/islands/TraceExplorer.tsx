@@ -85,7 +85,7 @@ function spanName(span: TraceSpan): string {
   if (span.kind === 'decision-step' && span.step) return span.step.name;
   if (span.kind === 'branch' || span.kind === 'dag-node') return span.executor ?? span.skill ?? span.spanId;
   if (span.kind === 'tool') return span.skill ?? span.spanId;
-  return span.outcome ?? span.realm ?? span.skill ?? span.spanId;
+  return span.outcome ?? span.dataDomain ?? span.skill ?? span.spanId;
 }
 
 function spanLatencyMs(span: TraceSpan): number | undefined {

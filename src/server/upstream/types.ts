@@ -147,7 +147,7 @@ export interface TraceSpan {
   kind: TraceSpanKind;
   executor?: string;
   skill?: string;
-  realm?: string;
+  dataDomain?: string;
   startedAt: string;
   endedAt?: string;
   outcome?: string;
