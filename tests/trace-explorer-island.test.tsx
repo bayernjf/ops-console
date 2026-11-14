@@ -37,7 +37,7 @@ const TREE: TraceTree = {
       spanId: 'br-1',
       parentSpanId: 'run-1',
       kind: 'branch',
-      vassal: 'atlas',
+      executor: 'atlas',
       startedAt: '2026-10-31T00:00:00.100Z',
       endedAt: '2026-10-31T00:00:02.000Z',
       events: [],

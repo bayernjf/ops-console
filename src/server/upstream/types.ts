@@ -134,7 +134,7 @@ export interface TraceModelCall {
 /** Decision-step facts carried by a decision-step span (TracePort v1 §2). */
 export interface TraceDecisionStep {
   name: 'fanout' | 'aggregate' | 'arbitration' | 'judge';
-  vassals?: string[];
+  executors?: string[];
   conclusion?: string;
   latencyMs?: number;
 }
@@ -145,9 +145,9 @@ export interface TraceSpan {
   spanId: string;
   parentSpanId?: string;
   kind: TraceSpanKind;
-  vassal?: string;
+  executor?: string;
   skill?: string;
-  realm?: string;
+  dataDomain?: string;
   startedAt: string;
   endedAt?: string;
   outcome?: string;

@@ -11,3 +11,4 @@ data/
 *.sqlite
 *.jsonl
 .DS_Store
+backups/
