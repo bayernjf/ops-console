@@ -15,6 +15,7 @@
     "check": "astro check",
     "typecheck": "astro check",
     "test": "vitest run",
+    "backup": "node --experimental-strip-types scripts/backup-ops-console.ts",
     "lint": "eslint .",
     "dev:upstream": "bash scripts/dev-upstream.sh",
     "dev:receiver": "node --experimental-sqlite --env-file=.env scripts/fake-webhook-receiver.ts",
