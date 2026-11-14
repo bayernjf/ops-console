@@ -1,75 +1,129 @@
 ---
 import ConsoleLayout from '../../../layouts/ConsoleLayout.astro';
 import { getContext } from '../../../server/context.js';
-import {
-  listMeetings,
-  loadMeeting,
-  openClaimIds,
-  type MeetingDocument,
-} from '../../../server/meetings-service.js';
+import { listMeetings, loadMeeting, openClaimIds } from '../../../server/meetings-service.js';
+import { meetingsUpstream, type MeetingDocument } from '../../../server/upstream/meetings.js';
 
 const session = Astro.locals.session!;
 const config = getContext().config;
+const api = meetingsUpstream(config);
 
-let meetings: Awaited<ReturnType<typeof listMeetings>> = [];
+const errorText = Astro.url.searchParams.get('error');
+const selectedId = Astro.url.searchParams.get('id');
+
+type Summary = {
+  id: string;
+  topic: string;
+  status: string;
+  round: number;
+  maxRounds: number;
+  utterances: number;
+  decisions: number;
+  updatedAt: string;
+};
+
+let meetings: Summary[] = [];
 let listError: string | null = null;
+let source = 'zeus';
 try {
-  meetings = await listMeetings(config);
+  meetings = (await api.list()).map(meeting => ({
+    id: meeting.id,
+    topic: meeting.topic,
+    status: meeting.status,
+    round: meeting.round,
+    maxRounds: meeting.maxRounds,
+    utterances: meeting.utterances,
+    decisions: meeting.decisions,
+    updatedAt: meeting.createdAt,
+  }));
 } catch (thrown) {
-  listError = thrown instanceof Error ? thrown.message : String(thrown);
+  // The local store is the fallback so the page still works when zeus is down;
+  // writes, however, only go through zeus (see /api/meetings).
+  source = 'local';
+  try {
+    meetings = (await listMeetings(config)).map(meeting => ({
+      id: meeting.id,
+      topic: meeting.topic,
+      status: meeting.status,
+      round: meeting.round,
+      maxRounds: meeting.maxRounds,
+      utterances: meeting.utterances,
+      decisions: meeting.decisions,
+      updatedAt: meeting.updatedAt,
+    }));
+  } catch (inner) {
+    listError = inner instanceof Error ? inner.message : String(inner);
+  }
 }
 
-const selectedId = Astro.url.searchParams.get('id');
 let detail: MeetingDocument | null = null;
 let detailError: string | null = null;
 if (selectedId) {
   try {
-    detail = await loadMeeting(config, selectedId);
+    detail = await api.get(selectedId);
   } catch (thrown) {
-    detailError = thrown instanceof Error ? thrown.message : String(thrown);
+    try {
+      const local = await loadMeeting(config, selectedId);
+      detail = local as unknown as MeetingDocument;
+    } catch (inner) {
+      detailError = inner instanceof Error ? inner.message : String(inner);
+    }
   }
 }
 
-const decided = new Set<string>();
-const rejected = new Set<string>();
 const chosen = new Set<string>();
+const rejected = new Set<string>();
 if (detail) {
   for (const decision of detail.decisions) {
-    for (const id of decision.chosenClaimIds) {
-      chosen.add(id);
-      decided.add(id);
-    }
-    for (const id of decision.rejectedClaimIds) {
-      rejected.add(id);
-      decided.add(id);
-    }
+    decision.chosenClaimIds.forEach(id => chosen.add(id));
+    decision.rejectedClaimIds.forEach(id => rejected.add(id));
   }
 }
-const openClaims = detail ? openClaimIds(detail) : [];
+const openClaims = detail ? openClaimIds(detail as never) : [];
 const rounds = detail
   ? [...new Set(detail.utterances.map((utterance) => utterance.round))].sort((a, b) => a - b)
   : [];
+const allClaims = detail ? detail.utterances.flatMap(utterance => utterance.claims) : [];
 ---
-<ConsoleLayout title="会议回放" session={session}>
+<ConsoleLayout title="会议" session={session}>
+  {errorText ? (
+    <div class="panel panel--error"><p>操作未生效：{errorText}</p></div>
+  ) : null}
   {listError ? (
     <div class="panel panel--error">
       <p>会议目录读取失败：{listError}</p>
-      <p class="hint">检查 <code>OPS_MEETING_DIR</code> 是否指向 zeus 的 meeting store。</p>
+      <p class="hint">检查 <code>OPS_MEETING_DIR</code> 与 zeus 的 <code>ZEUS_MEETING_DIR</code> 是否一致。</p>
     </div>
   ) : (
     <div class="stack">
       <section class="panel">
         <h1>会议</h1>
         <p class="hint">
-          只读回放：数据来自本地 meeting store（<code>OPS_MEETING_DIR</code>）。发起、发言与决策在 zeus
-          侧完成（<code>npm run meeting</code>）。
+          数据源：{source === 'zeus' ? 'zeus 会议 API' : '本地 store（zeus API 不可达，只读）'}。
+          发起、发言、推进与决策都经 zeus 的协议守卫，console 不直接改 JSON。
         </p>
+
+        <form class="inline-form" method="post" action="/api/meetings">
+          <input type="hidden" name="action" value="open" />
+          <label>议题 <input name="topic" required placeholder="这次要决定什么" /></label>
+          <label>轮次上限
+            <select name="maxRounds">
+              <option value="1">1</option>
+              <option value="2" selected>2</option>
+              <option value="3">3</option>
+              <option value="4">4</option>
+              <option value="5">5</option>
+            </select>
+          </label>
+          <button type="submit">开新会</button>
+        </form>
+
         {meetings.length === 0 ? (
-          <p class="empty">还没有会议记录。先在 zeus 里 <code>npm run meeting -- open --topic ...</code>。</p>
+          <p class="empty">还没有会议记录。</p>
         ) : (
           <table>
             <thead>
-              <tr><th>议题</th><th>状态</th><th>轮次</th><th>发言</th><th>决策</th><th>最后更新</th></tr>
+              <tr><th>议题</th><th>状态</th><th>轮次</th><th>发言</th><th>决策</th><th>时间</th></tr>
             </thead>
             <tbody>
               {meetings.map((meeting) => (
@@ -101,9 +155,54 @@ const rounds = detail
             id={detail.id} · 第 {detail.round}/{detail.maxRounds} 轮 · 创建于 {detail.createdAt.replace('T', ' ').slice(0, 19)}
           </p>
 
+          <div class="actions">
+            <form method="post" action="/api/meetings">
+              <input type="hidden" name="action" value="advance" />
+              <input type="hidden" name="id" value={detail.id} />
+              <button type="submit">推进到下一轮</button>
+            </form>
+          </div>
+
+          <h3>发言</h3>
+          <form class="stack-form" method="post" action="/api/meetings">
+            <input type="hidden" name="action" value="say" />
+            <input type="hidden" name="id" value={detail.id} />
+            <label>发言人 <input name="speaker" value={session.username} /></label>
+            <label>立场
+              <select name="stance">
+                <option value="propose">propose 提案</option>
+                <option value="challenge">challenge 质疑</option>
+                <option value="support">support 附议</option>
+                <option value="note">note 记录</option>
+              </select>
+            </label>
+            <label>主张正文 <textarea name="claimText" rows="2" placeholder="可留空：纯反驳时只填证据与目标"></textarea></label>
+            <label>证据类型
+              <select name="evidenceKind">
+                <option value="fact">fact</option>
+                <option value="observation">observation</option>
+                <option value="reference">reference</option>
+                <option value="counterexample">counterexample</option>
+              </select>
+            </label>
+            <label>证据引用 <input name="evidenceRef" placeholder="如 evaluate/run:123 或文档路径" /></label>
+            {detail.status === 'challenging' ? (
+              <fieldset>
+                <legend>质疑目标（可多选）</legend>
+                {allClaims.map((claim) => (
+                  <label class="check">
+                    <input type="checkbox" name="rebut" value={claim.id} />
+                    <span class="mono">{claim.id}</span> {claim.text}
+                  </label>
+                ))}
+              </fieldset>
+            ) : null}
+            <button type="submit">记录发言</button>
+          </form>
+
           <h3>决策</h3>
           {detail.decisions.length === 0 ? (
-            <p class="empty">尚未决策。收敛后由你在 zeus 侧 <code>decide</code>。</p>
+            <p class="empty">尚未决策。收敛后由你在下面这一票决定采纳/否决。</p>
           ) : (
             <ul class="decisions">
               {detail.decisions.map((decision) => (
@@ -118,6 +217,22 @@ const rounds = detail
               ))}
             </ul>
           )}
+          <form class="stack-form" method="post" action="/api/meetings">
+            <input type="hidden" name="action" value="decide" />
+            <input type="hidden" name="id" value={detail.id} />
+            <fieldset>
+              <legend>逐条裁决</legend>
+              {allClaims.map((claim) => (
+                <div class="check-row">
+                  <span><span class="mono">{claim.id}</span> {claim.text}</span>
+                  <label class="check"><input type="checkbox" name="chosen" value={claim.id} /> 采纳</label>
+                  <label class="check"><input type="checkbox" name="rejected" value={claim.id} /> 否决</label>
+                </div>
+              ))}
+            </fieldset>
+            <label>理由（必填） <textarea name="rationale" rows="2" required placeholder="为什么这么选；被否方案的理由一并写下"></textarea></label>
+            <button type="submit">提交决策</button>
+          </form>
 
           <h3>时间线</h3>
           {rounds.map((round) => (
@@ -145,9 +260,7 @@ const rounds = detail
                               {chosen.has(claim.id) ? <span class="chip chip--chosen">采纳</span> : null}
                               {rejected.has(claim.id) ? <span class="chip chip--rejected">否决</span> : null}
                               {claim.evidence.length > 0 ? (
-                                <div class="hint">
-                                  证据：{claim.evidence.map((item) => `${item.kind}:${item.ref}`).join('; ')}
-                                </div>
+                                <div class="hint">证据：{claim.evidence.map((item) => `${item.kind}:${item.ref}`).join('; ')}</div>
                               ) : (
                                 <div class="hint">（无证据）</div>
                               )}
@@ -197,4 +310,17 @@ const rounds = detail
   .decisions li, .utterances li { margin-bottom: 10px; }
   .claims { padding-left: 16px; margin-top: 6px; }
   .round { border-left: 2px solid var(--steel-800); padding-left: 10px; }
+  .inline-form { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; margin: 12px 0; font-size: 13px; }
+  .inline-form input, .stack-form input, .stack-form select, .stack-form textarea {
+    background: transparent; border: var(--hair); border-radius: 4px; color: inherit;
+    font: inherit; padding: 4px 6px;
+  }
+  .stack-form { display: flex; flex-direction: column; gap: 8px; font-size: 13px; margin-bottom: 12px; }
+  .stack-form label, .inline-form label { display: flex; flex-direction: column; gap: 4px; }
+  .check { flex-direction: row !important; align-items: center; gap: 6px; }
+  .check-row { display: flex; gap: 12px; align-items: baseline; flex-wrap: wrap; }
+  fieldset { border: var(--hair); border-radius: 4px; padding: 8px; }
+  button { padding: 5px 12px; border-radius: 4px; border: var(--hair); background: var(--steel-800); color: inherit; font: inherit; cursor: pointer; }
+  button:hover { background: var(--steel-700, var(--steel-800)); }
+  .actions { display: flex; gap: 8px; }
 </style>
