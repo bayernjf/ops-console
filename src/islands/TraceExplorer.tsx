@@ -83,7 +83,7 @@ function flattenTree(tree: TraceTree): SpanNode[] {
 function spanName(span: TraceSpan): string {
   if (span.kind === 'model' && span.call) return `${span.call.backend} / ${span.call.model}`;
   if (span.kind === 'decision-step' && span.step) return span.step.name;
-  if (span.kind === 'branch' || span.kind === 'dag-node') return span.vassal ?? span.skill ?? span.spanId;
+  if (span.kind === 'branch' || span.kind === 'dag-node') return span.executor ?? span.skill ?? span.spanId;
   if (span.kind === 'tool') return span.skill ?? span.spanId;
   return span.outcome ?? span.realm ?? span.skill ?? span.spanId;
 }
@@ -101,9 +101,9 @@ function spanLatencyMs(span: TraceSpan): number | undefined {
 
 function agentsOf(tree: TraceTree): string {
   const agents = new Set<string>();
-  if (tree.root.vassal) agents.add(tree.root.vassal);
+  if (tree.root.executor) agents.add(tree.root.executor);
   for (const span of tree.spans) {
-    if (span.vassal) agents.add(span.vassal);
+    if (span.executor) agents.add(span.executor);
   }
   return agents.size > 0 ? [...agents].join(', ') : '—';
 }
@@ -214,7 +214,7 @@ export default function TraceExplorer({ initial, refreshMs }: Props) {
           <input
             type="text"
             value={draft.agent}
-            placeholder="如 atlas（span 内 vassal 名）"
+            placeholder="如 atlas（span 内 executor 名）"
             onChange={(e) => setDraft({ ...draft, agent: e.target.value })}
           />
         </label>
