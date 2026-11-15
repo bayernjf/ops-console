@@ -76,4 +76,21 @@ describe('meetings upstream client', () => {
     const api = new MeetingsUpstream(BASE, TOKEN);
     await expect(api.markdown('m1')).resolves.toContain('## 决策');
   });
+
+  it('posts a draft batch to the proposals route', async () => {
+    let seen: { url?: URL; body?: Record<string, unknown> } = {};
+    stubFetch((url, init) => {
+      seen = { url, body: JSON.parse(String(init.body ?? '{}')) as Record<string, unknown> };
+      return new Response(JSON.stringify({ meeting: { id: 'm1' }, recorded: [], skipped: [] }), { status: 201 });
+    });
+    const api = new MeetingsUpstream(BASE, TOKEN);
+    await api.convene('m1', [
+      { speakerId: 'planner-a', claims: [{ text: '先做回放', evidence: [{ kind: 'reference', ref: 'doc.md', note: '' }] }] },
+      { speakerId: 'planner-b', claims: [] },
+    ]);
+    expect(seen.url?.pathname).toBe('/api/v1/meetings/m1/proposals');
+    const drafts = (seen.body?.drafts ?? []) as Array<{ speakerId: string; claims: Array<{ evidence: unknown[] }> }>;
+    expect(drafts[0]?.speakerId).toBe('planner-a');
+    expect(drafts[1]?.claims).toEqual([]);
+  });
 });
