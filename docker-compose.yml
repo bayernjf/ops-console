@@ -1,0 +1,36 @@
+# ops-console container run (D8-4). Local self-host under OrbStack.
+#
+# Secrets are never baked into the image: they are read from .env at run time.
+# The .env is gitignored; copy .env.example to .env and fill real values first.
+#
+# Upstream hosts: when zeus/commerce-os run on the macOS host, reach them via
+# OrbStack's host gateway. The same applies to the fake webhook receiver.
+services:
+  ops-console:
+    build: .
+    image: ops-console:local
+    container_name: ops-console
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      # The @astrojs/node standalone entry listens on HOST/PORT, not OPS_*.
+      # Bind all interfaces so the mapped port is reachable from the host.
+      HOST: 0.0.0.0
+      PORT: 3022
+      # Keep the app's own config fields consistent with the socket above.
+      OPS_HOST: 0.0.0.0
+      OPS_PORT: 3022
+      OPS_PUBLIC_BASE_URL: http://127.0.0.1:3022
+      # Upstreams assumed to run on the macOS host (OrbStack host gateway).
+      ZEUS_BASE_URL: http://host.docker.internal:3020
+      COMMERCE_BASE_URL: http://host.docker.internal:3021
+      OPS_NOTIFY_WEBHOOK_URL: http://host.docker.internal:3023/hook
+      # Meetings dir and notify/inbound logs live under ./data on the host.
+      OPS_MEETING_DIR: /app/data/meetings
+      OPS_NOTIFY_STORE_FILE: /app/data/notify-deliveries.jsonl
+      OPS_DECISION_WEBHOOK_LOG: /app/data/inbound-decision-events.jsonl
+    ports:
+      - "3022:3022"
+    volumes:
+      - ./data:/app/data
