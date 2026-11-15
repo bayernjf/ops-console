@@ -29,10 +29,11 @@ export const POST: APIRoute = async ({ request, locals, redirect }) => {
   const api = meetingsUpstream(getContext().config);
   const operator = locals.session?.username ?? 'owner';
 
-  const back = (meetingId?: string, error?: string) => {
+  const back = (meetingId?: string, error?: string, notice?: string) => {
     const params = new URLSearchParams();
     if (meetingId) params.set('id', meetingId);
     if (error) params.set('error', error);
+    if (notice) params.set('notice', notice);
     const query = params.toString();
     return redirect(`/app/meetings${query ? `?${query}` : ''}`, 303);
   };
@@ -75,6 +76,33 @@ export const POST: APIRoute = async ({ request, locals, redirect }) => {
         rebuts,
       });
       return back(next.id);
+    }
+
+    if (action === 'convene') {
+      // One draft per line: `speakerId :: claim text :: evidence ref (optional)`.
+      const raw = String(form.get('drafts') ?? '');
+      const drafts = raw
+        .split('\n')
+        .map(line => line.trim())
+        .filter(line => line.length > 0)
+        .map(line => {
+          const [speaker, text, ref] = line.split('::').map(part => part.trim());
+          const claims = (text ?? '').length > 0
+            ? [{ text: text as string, evidence: (ref ?? '').length > 0 ? [{ kind: 'reference', ref: ref as string, note: '' }] : [] }]
+            : [];
+          return { speakerId: speaker ?? '', claims };
+        })
+        .filter(draft => draft.speakerId.length > 0);
+      if (drafts.length === 0) return back(id, '至少写一条「发言人 :: 主张」');
+      const result = await api.convene(id, drafts);
+      // A skipped draft is information, not a failure: the rest were recorded.
+      return back(
+        result.meeting.id,
+        undefined,
+        result.skipped.length > 0
+          ? `已记录 ${result.recorded.length} 条，跳过 ${result.skipped.length} 条（${result.skipped.map(entry => `${entry.speakerId}: ${entry.reason}`).join('；')}）`
+          : `已记录 ${result.recorded.length} 条提案`,
+      );
     }
 
     if (action === 'advance') {

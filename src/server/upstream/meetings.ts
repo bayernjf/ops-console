@@ -119,6 +119,17 @@ export class MeetingsUpstream {
     return text;
   }
 
+  /** Fill round 1 from drafts; zeus assigns claim ids and records skips. */
+  async convene(
+    id: string,
+    drafts: Array<{ speakerId: string; claims: Array<{ text: string; evidence?: MeetingEvidence[] }> }>,
+  ): Promise<{ meeting: MeetingDocument; recorded: Array<{ speakerId: string; claimIds: string[] }>; skipped: Array<{ speakerId: string; reason: string }> }> {
+    return callJson(this.baseUrl, this.token, `/api/v1/meetings/${encodeURIComponent(id)}/proposals`, {
+      method: 'POST',
+      body: { drafts: drafts.map(draft => ({ ...draft, claims: draft.claims.map(claim => ({ ...claim, evidence: claim.evidence ?? [] })) })) },
+    });
+  }
+
   async advance(id: string): Promise<MeetingDocument> {
     return callJson<MeetingDocument>(this.baseUrl, this.token, `/api/v1/meetings/${encodeURIComponent(id)}/advance`, {
       method: 'POST',

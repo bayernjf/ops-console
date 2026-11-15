@@ -9,6 +9,7 @@ const config = getContext().config;
 const api = meetingsUpstream(config);
 
 const errorText = Astro.url.searchParams.get('error');
+const noticeText = Astro.url.searchParams.get('notice');
 const selectedId = Astro.url.searchParams.get('id');
 
 type Summary = {
@@ -89,6 +90,9 @@ const allClaims = detail ? detail.utterances.flatMap(utterance => utterance.clai
   {errorText ? (
     <div class="panel panel--error"><p>操作未生效：{errorText}</p></div>
   ) : null}
+  {noticeText ? (
+    <div class="panel panel--note"><p>{noticeText}</p></div>
+  ) : null}
   {listError ? (
     <div class="panel panel--error">
       <p>会议目录读取失败：{listError}</p>
@@ -163,6 +167,22 @@ const allClaims = detail ? detail.utterances.flatMap(utterance => utterance.clai
             </form>
             <a class="button" href={`/api/meetings/${detail.id}/markdown`}>下载纪要（Markdown）</a>
           </div>
+
+          {detail.status === 'open' || (detail.status === 'proposing' && detail.round === 1) ? (
+            <>
+              <h3>批量提案（第 1 轮）</h3>
+              <p class="hint">
+                一行一条：<code>发言人 :: 主张文本 :: 证据引用（可省略）</code>。
+                claim id 由 zeus 分配，空提案记 skipped 而不是半条发言。
+              </p>
+              <form class="stack-form" method="post" action="/api/meetings">
+                <input type="hidden" name="action" value="convene" />
+                <input type="hidden" name="id" value={detail.id} />
+                <textarea name="drafts" rows="4" placeholder="planner-a :: 先做回放界面 :: docs/design-meeting.md&#10;planner-b :: 先做自动提案"></textarea>
+                <button type="submit">批量记录提案</button>
+              </form>
+            </>
+          ) : null}
 
           <h3>发言</h3>
           <form class="stack-form" method="post" action="/api/meetings">
@@ -291,6 +311,7 @@ const allClaims = detail ? detail.utterances.flatMap(utterance => utterance.clai
   .stack { display: flex; flex-direction: column; gap: 16px; }
   .panel { padding: 16px; border: var(--hair); border-radius: 8px; background: var(--steel-850); }
   .panel--error { border-color: var(--alert); }
+  .panel--note { border-color: var(--data); color: var(--ink-dim); }
   h1 { font-size: 16px; margin: 0 0 8px; }
   h2 { font-size: 15px; margin: 0; }
   h3 { font-size: 13px; margin: 18px 0 8px; color: var(--ink-dim); text-transform: uppercase; letter-spacing: 0.04em; }
