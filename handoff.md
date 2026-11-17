@@ -1,5 +1,12 @@
 # ops-console · handoff
 
+## 2026-11-17/18 Tier0 组织层 F2.3 卡点看板端到端闭环 + 审批-恢复断链修复
+
+- ✅ 修复：`decideApproval` 对 proposal 携带 `taskId` 的决策改走 zeus `POST /api/v1/org/tasks/:taskId/resume`（zeus 原子完成"批决策 + 恢复任务"），不再走纯决策批准端点——旧路径会批完决策却让任务永远停在 `awaiting_decision`。D3 owner-only RBAC 仍在调用前强制。`ZeusUpstream` 新增 `resumeOrgTask`。
+- ✅ 测试 +3 例（`tests/approvals-service.test.ts`，fake zeus 增加 resume 路由）：org 决策批准走 resume 且纯批准端点零调用、reject 同路径、D3 org 决策 operator 403 且 resume 零调用；既有队列断言随新记录更新。全量 **33 文件 / 229 用例**。
+- ✅ 端到端验收（真实三进程：zeus 18790 带 agent-dev 臂 + console 3022 + agent-dev daemon 3738）：weekly-report 模板真执行 collect→summarize→human-review 挂起（D2 org/hard）→ 任务页卡点分区出现 → 深链 `/app/approvals/[id]` 审批 → **任务自动 resume 到 done**（修复前需手动调 zeus resume 且带 approval 会撞已 decided 冲突）。未登录 302、登录后 200、owner 审批 200 全程实证。
+- 门禁：`astro check` 0 error、`eslint .` 0、`vitest run` 33 文件 229 用例全绿、`astro build` 成功。
+
 ## 2026-11-17 Tier0 组织层 M2：花名册页 + 任务队列页（F2.1 / F2.2）
 
 - ✅ F2.1 `/app/org`：只读投影 zeus `GET /api/v1/org/{organizations,departments,positions}`，
