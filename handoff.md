@@ -1,5 +1,35 @@
 # ops-console · handoff
 
+## 2026-11-17 Tier0 组织层 M2：花名册页 + 任务队列页（F2.1 / F2.2）
+
+- ✅ F2.1 `/app/org`：只读投影 zeus `GET /api/v1/org/{organizations,departments,positions}`，
+  树形渲染 组织 → 部门 → 岗位，岗位卡显示 decisionScope、绑定 agent、技能、工具、
+  该岗位任务数；组织头显示 scaleTier 与 concurrencyLimit。可按 `?organization_id=` 切换组织。
+- ✅ F2.2 `/app/org/tasks`：接 zeus `GET /api/v1/org/tasks`（bearer，按 org 过滤，zeus 零改动），
+  七列（任务 / 岗位 / 状态 / 入队时间 / 耗时 / 重试 / 工作区），失败带 failedKind 中文与
+  error 摘要；`awaiting_decision` 置顶分区并深链 `/app/approvals/[id]`（F2.3 首版并入本页）。
+  岛屿 `OrgTaskQueue` 每 `OPS_NOTIFY_LIST_REFRESH_MS`（下限 5s）轮询 BFF，状态流转无需刷新。
+- 改动：`src/server/upstream/{types,zeus}.ts`（Org 投影类型 + 4 个 GET 方法）、
+  `src/server/org-service.ts`（快照聚合 / 队列排序 / 状态计数）、`src/server/rbac.ts`
+  （`canViewOrg` = owner|operator，只读无 payload）、`src/pages/api/org/tasks/index.ts`
+  （未登录/非运营角色 403）、两张页面、`src/islands/OrgTaskQueue.tsx`、`src/consts.ts`
+  （nav「组织视图」，`startsWith` 使 `/app/org/tasks` 同属该条目）。
+- 本地三进程验收（zeus 18788 + console 3022，seed 1 org / 1 dept / 2 positions 其中 1 个绑定
+  agent / 4 pending 任务）：未登录 `/app/org`、`/app/org/tasks` → 302 到 login，
+  `/api/org/tasks` → 401；登录后两页 200；花名册渲染「验收组织 small 并发上限 2 /
+  部门 1 · 岗位 2 · 已绑定 1」与 zeus API 返回逐字段一致；队列页显示 4 个任务、
+  岗位名由 positionId 映射、`/api/org/tasks` 返回 `counts: {pending: 4}`。
+- 测试：`tests/org-service.test.ts`（7 例，node:http 假 zeus 全链路：聚合 / org 过滤 /
+  空组织 / 上游不可达 fail-closed / 排序 / 计数 / RBAC）+ `tests/org-task-queue-island.test.tsx`
+  （4 例：列渲染 / 卡点分区与深链 / 轮询驱动的状态流转 / 上游错误 fail-closed）。
+- 门：`astro check` 135 files 0 error、`eslint .` 0、`vitest run` 32 文件 226 用例全绿、
+  `astro build` 成功。
+- 依赖缺口（zeus 侧，本批已修）：SQLite org store 之前不落 `concurrency_limit` /
+  `workspace_path` / `outcome_json`，导致 F1.1 并发上限恒回退默认 2、F1.2 工作区与 F4.1
+  结局在重启后丢失。zeus 已补 0006 迁移（见 zeus handoff 同日条目）。
+- 未做：F2.3 只到「卡点置顶 + 深链」，未造真实 D3 挂起任务走完端到端；M3（成本）与
+  M5（目标/排班）未开工。
+
 > **2026-11-06 补登：dev → main 已于 2026-11-05 经 PR #14 合并（合并前 CI 全绿）；实测 origin/main 与 origin/dev 内容完全一致（git diff 为空）。**
 
 > 规则：完成项及时登记；缺口分"内核缺口（需回到 zeus/commerce 做）"与"外部验收项"。
