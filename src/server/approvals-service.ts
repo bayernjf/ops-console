@@ -92,6 +92,11 @@ export function getReplay(
  * enforced here (D3 is owner-only) BEFORE touching zeus. Any further state
  * conflict (already decided, timeout, …) comes from zeus and is passed
  * through unchanged.
+ *
+ * Tier0 org F2.3: when the decision blocked an org task (proposal carries
+ * `taskId`), the action is routed to the org task resume route, which settles
+ * the decision and resumes the task atomically. The plain approval route
+ * would settle the decision but leave the task awaiting_decision forever.
  */
 export async function decideApproval(
   ctx: ServerContext,
@@ -107,9 +112,33 @@ export async function decideApproval(
   if (!canApprove(session.role, decision.grade)) {
     throw forbidden(`${session.role} is not allowed to approve ${decision.grade} decisions`);
   }
-  return ctx.zeus.approve(id, {
+  const payload = {
     decision: input.decision,
     approver: session.username,
     ...(input.comment && input.comment.length > 0 ? { comment: input.comment } : {}),
-  });
+  };
+  const taskId = orgTaskIdFromProposal(decision.proposal);
+  if (taskId) {
+    const settled = await ctx.zeus.resumeOrgTask(taskId, payload);
+    // The resume route answers with the settled record; re-read it when the
+    // response omits the decision so the caller still gets the settled shape.
+    const settledDecision = settled.decision ?? (await ctx.zeus.getDecision(id));
+    return {
+      decisionId: settledDecision.id,
+      grade: settledDecision.grade,
+      mode: settledDecision.mode,
+      status: settledDecision.status,
+      ruleId: settledDecision.ruleId,
+      proposal: settledDecision.proposal,
+      auditSeq: settledDecision.auditSeq,
+    };
+  }
+  return ctx.zeus.approve(id, payload);
+}
+
+/** The org-task proposal shape written by zeus template/org executors. */
+function orgTaskIdFromProposal(proposal: unknown): string | undefined {
+  if (typeof proposal !== 'object' || proposal === null || Array.isArray(proposal)) return undefined;
+  const taskId = (proposal as Record<string, unknown>).taskId;
+  return typeof taskId === 'string' && taskId.trim().length > 0 ? taskId.trim() : undefined;
 }
