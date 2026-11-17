@@ -154,4 +154,23 @@ export class ZeusUpstream {
     );
     return body.tasks;
   }
+
+  /**
+   * Tier0 org F2.3: settle-and-resume an org task blocked on a human-review
+   * decision. zeus approves/rejects the decision and resumes the task in one
+   * atomic call; the settled decision rides back on the response. The plain
+   * approval route must not be used for these decisions - it would leave the
+   * task awaiting_decision forever.
+   */
+  async resumeOrgTask(
+    taskId: string,
+    payload: ApprovalPayload,
+  ): Promise<{ task: OrgTask; decision?: DecisionRecord }> {
+    return callJson<{ task: OrgTask; decision?: DecisionRecord }>(
+      this.baseUrl,
+      this.token,
+      `/api/v1/org/tasks/${encodeURIComponent(taskId)}/resume`,
+      { method: 'POST', body: payload },
+    );
+  }
 }

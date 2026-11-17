@@ -44,6 +44,22 @@ const RECORDS: Record<string, DecisionRecord> = {
   dec_d1: rec({ id: 'dec_d1', grade: 'D1', status: 'awaiting_approval', createdAt: '2026-01-03T00:00:00.000Z' }),
   dec_d2: rec({ id: 'dec_d2', grade: 'D2', status: 'blocked', createdAt: '2026-01-02T00:00:00.000Z' }),
   dec_d3: rec({ id: 'dec_d3', grade: 'D3', status: 'blocked', createdAt: '2026-01-01T00:00:00.000Z' }),
+  // F2.3: a D2 decision that blocked an org task's human-review step.
+  dec_org: rec({
+    id: 'dec_org',
+    grade: 'D2',
+    status: 'blocked',
+    createdAt: '2026-01-04T00:00:00.000Z',
+    proposal: { system: 'template', templateRef: 'weekly-report', stepId: 'human-review', taskId: 'task_org_1' },
+  }),
+  // F2.3: same shape at D3, to pin RBAC in front of the resume routing.
+  dec_org_d3: rec({
+    id: 'dec_org_d3',
+    grade: 'D3',
+    status: 'blocked',
+    createdAt: '2026-01-05T00:00:00.000Z',
+    proposal: { system: 'template', templateRef: 'weekly-report', stepId: 'human-review', taskId: 'task_org_2' },
+  }),
 };
 
 const POLICY = { version: 1, defaultGrade: 'D2', rules: [{ id: 'd2-amount', match: { amount: { min: 500.01, max: 5000, currency: 'CNY' } }, grade: 'D2' }] };
@@ -52,6 +68,7 @@ interface FakeZeus {
   server: Server;
   baseUrl: string;
   approvalCalls: Array<{ id: string; body: unknown; authorization: string }>;
+  resumeCalls: Array<{ taskId: string; body: unknown }>;
   thresholdCalls: Array<unknown>;
   listQueryLog: Array<{ status?: string | undefined; domain?: string | undefined }>;
 }
@@ -61,6 +78,7 @@ async function startFakeZeus(): Promise<FakeZeus> {
     server: null as unknown as Server,
     baseUrl: '',
     approvalCalls: [],
+    resumeCalls: [],
     thresholdCalls: [],
     listQueryLog: [],
   };
@@ -107,6 +125,20 @@ async function startFakeZeus(): Promise<FakeZeus> {
         }
         return json(200, { decisionId: target.id, grade: target.grade, mode: target.mode, status: 'decided', ruleId: target.ruleId, auditSeq: 2 });
       }
+      // POST /api/v1/org/tasks/:id/resume (F2.3: settle decision + resume task)
+      const resumeMatch = url.pathname.match(/^\/api\/v1\/org\/tasks\/([^/]+)\/resume$/);
+      if (req.method === 'POST' && resumeMatch) {
+        const body = JSON.parse(Buffer.concat(chunks).toString() || '{}');
+        const taskId = resumeMatch[1]!;
+        state.resumeCalls.push({ taskId, body });
+        if (taskId !== 'task_org_1') return json(404, { code: 'TASK_NOT_FOUND', message: 'missing', retryable: false });
+        const settled = {
+          ...RECORDS.dec_org!,
+          status: 'decided' as const,
+          result: { outcome: body.decision === 'approve' ? 'approved' as const : 'rejected' as const, at: '2026-01-04T01:00:00.000Z', approver: body.approver as string },
+        };
+        return json(202, { task: { id: taskId, status: 'done' }, decision: settled });
+      }
       // GET /api/v1/policy
       if (req.method === 'GET' && url.pathname === '/api/v1/policy') {
         return json(200, POLICY);
@@ -142,14 +174,14 @@ describe('approvals service against fake zeus (real HTTP)', () => {
     fake = await startFakeZeus();
     const ctx = ctxFor(fake.baseUrl);
     const all = await listApprovals(ctx);
-    expect(all.map((r) => r.id)).toEqual(['dec_d1', 'dec_d2', 'dec_d3']);
+    expect(all.map((r) => r.id)).toEqual(['dec_org_d3', 'dec_org', 'dec_d1', 'dec_d2', 'dec_d3']);
     expect(fake.listQueryLog).toEqual([{ status: 'awaiting_approval', domain: undefined }, { status: 'blocked', domain: undefined }]);
 
     const d1Only = await listApprovals(ctx, { status: 'awaiting_approval' });
     expect(d1Only.map((r) => r.id)).toEqual(['dec_d1']);
 
     const d3Only = await listApprovals(ctx, { grade: 'D3' });
-    expect(d3Only.map((r) => r.id)).toEqual(['dec_d3']);
+    expect(d3Only.map((r) => r.id)).toEqual(['dec_org_d3', 'dec_d3']);
 
     await listApprovals(ctx, { domain: 'refund', grade: 'D2' });
     expect(fake.listQueryLog.at(-1)).toMatchObject({ domain: 'refund' });
@@ -197,6 +229,38 @@ describe('approvals service against fake zeus (real HTTP)', () => {
     // Closed-port context => fetch failure => 503 UPSTREAM_UNAVAILABLE.
     const dead = ctxFor('http://127.0.0.1:1');
     await expect(listApprovals(dead)).rejects.toMatchObject({ status: 503, code: 'UPSTREAM_UNAVAILABLE' });
+  });
+
+  it('routes an org-task decision to the task resume route and maps the settled shape', async () => {
+    const ctx = ctxFor(fake.baseUrl);
+    const before = fake.approvalCalls.length;
+    const settled = await decideApproval(ctx, 'dec_org', { decision: 'approve', comment: 'looks good' }, OWNER);
+    // The plain approval route must stay untouched: it would settle the
+    // decision but leave the org task awaiting_decision forever.
+    expect(fake.approvalCalls.length).toBe(before);
+    expect(fake.resumeCalls.at(-1)).toMatchObject({
+      taskId: 'task_org_1',
+      body: { decision: 'approve', approver: 'owner', comment: 'looks good' },
+    });
+    // The caller still receives the settled summary shape the UI renders.
+    expect(settled).toMatchObject({ decisionId: 'dec_org', status: 'decided', grade: 'D2' });
+  });
+
+  it('routes an org-task rejection to the resume route with the reject verdict', async () => {
+    const ctx = ctxFor(fake.baseUrl);
+    const settled = await decideApproval(ctx, 'dec_org', { decision: 'reject' }, OWNER);
+    expect(fake.resumeCalls.at(-1)).toMatchObject({ taskId: 'task_org_1', body: { decision: 'reject', approver: 'owner' } });
+    expect(settled).toMatchObject({ decisionId: 'dec_org', status: 'decided' });
+  });
+
+  it('operator is still refused on an org-task D3 decision before any upstream call', async () => {
+    const ctx = ctxFor(fake.baseUrl);
+    const before = fake.resumeCalls.length;
+    await expect(decideApproval(ctx, 'dec_org_d3', { decision: 'approve' }, OPERATOR)).rejects.toMatchObject({
+      status: 403,
+      code: 'FORBIDDEN',
+    });
+    expect(fake.resumeCalls.length).toBe(before);
   });
 });
 
