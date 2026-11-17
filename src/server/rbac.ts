@@ -31,3 +31,11 @@ export function canViewTraces(role: Role): boolean {
 export function canDoControlledAction(role: Role): boolean {
   return role === 'owner' || role === 'operator';
 }
+
+/**
+ * Tier0 org M2: the roster and task queue are read-only projections of zeus
+ * org v1 (no payloads, no costs), so both operating roles may view them.
+ */
+export function canViewOrg(role: Role): boolean {
+  return role === 'owner' || role === 'operator';
+}

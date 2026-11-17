@@ -5,6 +5,10 @@ import type {
   DecisionPolicy,
   DecisionRecord,
   DecisionStatus,
+  OrgDepartment,
+  OrgOrganization,
+  OrgPosition,
+  OrgTask,
   TraceListFilter,
   TraceQueryResult,
 } from './types.js';
@@ -108,5 +112,46 @@ export class ZeusUpstream {
       method: 'POST',
       body: payload,
     });
+  }
+
+  /** Tier0 org M2 F2.1: organization list (bearer, read-only). */
+  async listOrganizations(): Promise<OrgOrganization[]> {
+    const body = await callJson<{ organizations: OrgOrganization[] }>(
+      this.baseUrl,
+      this.token,
+      '/api/v1/org/organizations',
+    );
+    return body.organizations;
+  }
+
+  async listDepartments(organizationId?: string): Promise<OrgDepartment[]> {
+    const body = await callJson<{ departments: OrgDepartment[] }>(
+      this.baseUrl,
+      this.token,
+      '/api/v1/org/departments',
+      { query: organizationId ? { organizationId } : {} },
+    );
+    return body.departments;
+  }
+
+  async listPositions(organizationId?: string): Promise<OrgPosition[]> {
+    const body = await callJson<{ positions: OrgPosition[] }>(
+      this.baseUrl,
+      this.token,
+      '/api/v1/org/positions',
+      { query: organizationId ? { organizationId } : {} },
+    );
+    return body.positions;
+  }
+
+  /** Tier0 org M2 F2.2: task queue projection (belt of GET /api/v1/org/tasks). */
+  async listOrgTasks(organizationId?: string): Promise<OrgTask[]> {
+    const body = await callJson<{ tasks: OrgTask[] }>(
+      this.baseUrl,
+      this.token,
+      '/api/v1/org/tasks',
+      { query: organizationId ? { organizationId } : {} },
+    );
+    return body.tasks;
   }
 }

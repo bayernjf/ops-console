@@ -1,0 +1,128 @@
+---
+import ConsoleLayout from '../../../layouts/ConsoleLayout.astro';
+import { getContext } from '../../../server/context.js';
+import { loadOrgSnapshot } from '../../../server/org-service.js';
+import { canViewOrg } from '../../../server/rbac.js';
+import type { OrgSnapshot } from '../../../server/upstream/types.js';
+
+const session = Astro.locals.session!;
+const allowed = canViewOrg(session.role);
+
+// Tier0 org M2 F2.1: read-only roster over zeus org v1. Fail-closed like every
+// page: on upstream failure no stale tree is shown.
+let snapshot: OrgSnapshot | null = null;
+let loadError: string | null = null;
+const orgFilter = Astro.url.searchParams.get('organization_id') ?? undefined;
+if (allowed) {
+  try {
+    snapshot = await loadOrgSnapshot(getContext(), orgFilter);
+  } catch (thrown) {
+    loadError = thrown instanceof Error ? thrown.message : String(thrown);
+  }
+}
+
+const org = snapshot?.organizations.find(o => o.id === (orgFilter ?? snapshot?.organizations[0]?.id)) ?? null;
+const departments = snapshot?.departments ?? [];
+const positions = snapshot?.positions ?? [];
+const tasks = snapshot?.tasks ?? [];
+const taskCountByPosition = new Map<string, number>();
+for (const task of tasks) {
+  if (task.positionId) taskCountByPosition.set(task.positionId, (taskCountByPosition.get(task.positionId) ?? 0) + 1);
+}
+const positionsOf = (departmentId: string) => positions.filter(p => p.departmentId === departmentId);
+const agentCount = positions.filter(p => p.agentId).length;
+---
+
+<ConsoleLayout title="组织视图" session={session}>
+  {!allowed ? (
+    <div class="panel">
+      <p class="hint">组织视图需要运营角色（owner/operator）。当前角色 {session.role} 不可见。</p>
+    </div>
+  ) : loadError ? (
+    <div class="panel panel--error">
+      <p>上游暂时不可达（zeus 未响应），组织数据加载失败：{loadError}</p>
+      <p class="hint">页面已 fail-closed，不会展示过期缓存。</p>
+    </div>
+  ) : !snapshot || snapshot.organizations.length === 0 ? (
+    <div class="panel">
+      <p>还没有组织。先在 zeus 侧创建组织、部门与岗位，再回到本页。</p>
+      <p class="hint">本页只读：数据全部来自 zeus 的 org organizations / departments / positions 三个 GET 端点。</p>
+    </div>
+  ) : (
+    <>
+      <div class="toolbar">
+        <div class="org-head">
+          <h1>{org?.name ?? '组织'}</h1>
+          <span class="tag">{org?.scaleTier ?? '-'}</span>
+          {org?.concurrencyLimit ? <span class="tag">并发上限 {org.concurrencyLimit}</span> : null}
+        </div>
+        <div class="links">
+          <span class="hint">部门 {departments.length} · 岗位 {positions.length} · 已绑定 {agentCount}</span>
+          <a class="link" href="/app/org/tasks">任务队列 →</a>
+        </div>
+      </div>
+
+      {departments.length === 0 ? <p class="hint">该组织还没有部门。</p> : null}
+      <div class="tree">
+        {departments.map(dept => (
+          <section class="dept">
+            <header class="dept-head">
+              <span class="dept-name">{dept.name}</span>
+              <span class="hint">{dept.mission}</span>
+            </header>
+            {positionsOf(dept.id).length === 0 ? (
+              <p class="hint indent">该部门暂无岗位。</p>
+            ) : (
+              <div class="positions">
+                {positionsOf(dept.id).map(pos => (
+                  <article class="position">
+                    <div class="pos-head">
+                      <span class="pos-name">{pos.name}</span>
+                      <span class="tag">{pos.decisionScope}</span>
+                      {pos.agentId ? <span class="tag tag--ok">agent {pos.agentId}</span> : <span class="tag tag--warn">未绑定</span>}
+                    </div>
+                    <dl class="facts">
+                      <dt>技能</dt>
+                      <dd>{pos.requiredSkills.join('、') || '-'}</dd>
+                      <dt>工具</dt>
+                      <dd>{pos.allowedTools.join('、') || '-'}</dd>
+                      <dt>任务</dt>
+                      <dd>{taskCountByPosition.get(pos.id) ?? 0} 个</dd>
+                    </dl>
+                  </article>
+                ))}
+              </div>
+            )}
+          </section>
+        ))}
+      </div>
+    </>
+  )}
+</ConsoleLayout>
+
+<style>
+  .toolbar { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+  .org-head { display: flex; align-items: baseline; gap: 10px; }
+  .org-head h1 { font-size: 18px; margin: 0; }
+  .links { display: flex; align-items: center; gap: 12px; }
+  .link { color: var(--data); font-size: 13px; text-decoration: none; }
+  .link:hover { text-decoration: underline; }
+  .panel { padding: 16px; border: var(--hair); border-radius: 8px; background: var(--steel-850); }
+  .panel--error { border-color: var(--alert); }
+  .hint { color: var(--ink-dim); font-size: 12px; margin: 0; }
+  .tree { display: flex; flex-direction: column; gap: 14px; }
+  .dept { border: var(--hair); border-radius: 8px; background: var(--steel-850); padding: 12px 14px; }
+  .dept-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 10px; }
+  .dept-name { font-weight: 600; }
+  .indent { padding-left: 4px; }
+  .positions { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; }
+  .position { border: var(--hair); border-radius: 6px; padding: 10px; background: var(--steel-900); }
+  .pos-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+  .pos-name { font-weight: 600; font-size: 13px; }
+  .facts { display: grid; grid-template-columns: 40px 1fr; gap: 2px 8px; margin: 0; font-size: 12px; }
+  .facts dt { color: var(--ink-dim); }
+  .facts dd { margin: 0; word-break: break-all; }
+  .tag { font-size: 11px; padding: 1px 6px; border-radius: 4px; border: var(--hair); color: var(--ink-dim); }
+  .tag--ok { color: var(--data); }
+  .tag--warn { color: var(--alert); }
+</style>
