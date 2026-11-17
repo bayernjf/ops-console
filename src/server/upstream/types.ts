@@ -197,3 +197,82 @@ export interface TraceListFilter {
   traceId?: string;
   limit?: string;
 }
+
+/**
+ * zeus GET /api/v1/org/* projections (Tier0 org plan M2 F2.1/F2.2). Fields
+ * mirror the zeus org contract one-for-one; the console adds no rules.
+ */
+export interface OrgOrganization {
+  id: string;
+  name: string;
+  scaleTier: string;
+  parentId?: string;
+  concurrencyLimit?: number;
+  createdAt: string;
+}
+
+export interface OrgDepartment {
+  id: string;
+  organizationId: string;
+  name: string;
+  mission: string;
+  parentId?: string;
+  createdAt: string;
+}
+
+export interface OrgPosition {
+  id: string;
+  organizationId: string;
+  departmentId: string;
+  name: string;
+  responsibilities: string[];
+  requiredSkills: string[];
+  allowedTools: string[];
+  decisionScope: Grade;
+  agentId?: string;
+  createdAt: string;
+}
+
+export type OrgTaskStatus =
+  | 'pending'
+  | 'dispatched'
+  | 'running'
+  | 'awaiting_decision'
+  | 'done'
+  | 'failed';
+
+export interface OrgTask {
+  id: string;
+  organizationId: string;
+  title: string;
+  positionId?: string;
+  assignedAgentId?: string;
+  status: OrgTaskStatus;
+  attempts?: number;
+  failedKind?: string;
+  error?: string;
+  workspacePath?: string;
+  createdAt: string;
+  updatedAt: string;
+  outcome?: {
+    status: 'done' | 'failed';
+    attempts: number;
+    failedKind?: string;
+    error?: string;
+    /** Decision checkpoints the run touched, oldest first. */
+    decisions?: { id: string; status: string }[];
+    startedAt?: string;
+    durationMs?: number;
+    settledAt: string;
+    workspace?: { path: string; artifact?: string; policy: 'archive' | 'discard' };
+    resultSummary?: string;
+  };
+}
+
+/** One org projected for the roster and queue pages. */
+export interface OrgSnapshot {
+  organizations: OrgOrganization[];
+  departments: OrgDepartment[];
+  positions: OrgPosition[];
+  tasks: OrgTask[];
+}
