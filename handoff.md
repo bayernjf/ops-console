@@ -1,5 +1,15 @@
 # ops-console · handoff
 
+## 待办登记（标准）
+
+> 本段是本产品唯一活跃待办入口；详细背景见下方原有章节。完成一项改 `[x]`，并在“最近变更 / Recently shipped”留证据。
+> 最近同步：2026-11-19
+
+- [ ] **GATE-M8 连续 7 天现网运营** — 状态：open；下一步：连续 7 天全部在控制台完成、无人直接调 API。
+- [ ] **真实 webhook（飞书/微信/邮件）** — 状态：blocked；下一步：owner 提供 `OPS_NOTIFY_WEBHOOK_URL` 等外部地址。
+- [ ] **生产认证 Cloudflare Access / GitHub OIDC** — 状态：blocked；当前仍是预留 seam，现网部署/域名/TLS 冻结。
+- [ ] **退款页/内容页切 commerce 新端点** — 状态：open；下一步：从事件流派生切到 commerce 新端点，属下一批控制台接线。
+
 ## 2026-11-19 Tier0 组织层 F2.1 控制台侧：owner-only 组织建模
 
 - ✅ `/app/org/manage` 上线（owner-only，`canManageOrg`）：三个创建表单
