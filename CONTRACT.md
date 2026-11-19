@@ -12,6 +12,7 @@
 |---|---|---|
 | zeus 决策/组织 API | 3020 | 上游，`../zeus`，bearer 仅服务端持有 |
 | commerce-os API | 3021 | 上游，`../commerce-os`，bearer 仅服务端持有 |
+| model-hub admin API | 8791 | 上游，`../model-hub`，owner 会话 cookie 仅服务端持有 |
 | **ops-console SSR** | **3022** | 页面 + 服务端端点，同进程 |
 | 本地假 webhook 接收端 | 3023 | 仅本地通知验证（脚本） |
 
@@ -130,3 +131,26 @@ ops-console 纯只读 BFF，不建任何本地存储）。
   错误态 `role="alert"`）。
 - 依赖：zeus 侧需开启 `ZEUS_DECISION_TRACE_FILE` 才产生 trace 导出；未开启时
   页面呈现空态文案，不报错。
+
+## 7. Tier0 org M3 F3.3：组织成本页（只读 BFF，2026-11-19）
+
+依据 bayjf `Tier0-组织层五缺口落地方案-2026-11-17.md` §M3 F3.3。model-hub
+管理台已提供 `GET /api/admin/costs/org`（group_by=position|department|task，
+可选 from/to）；本页只消费它，不做第二套聚合或本地金额重算。
+
+- 页面：`/app/costs`（owner/operator 均可读，`canViewOrg`）。三个维度 tab
+  （任务 / 部门 / 岗位）；表格列为轴值、calls、input/output tokens、
+  cost_micros（按 micro-USD 渲染）；顶部展示上游 `totals` 逐字值。
+- 上游：`ModelHubUpstream.getOrgCosts()`（`src/server/upstream/model-hub.ts`）。
+  model-hub 管理面是 **owner 会话 cookie 认证**，不是 bearer；控制台用
+  `MODEL_HUB_BASE_URL` + `MODEL_HUB_ADMIN_USERNAME` +
+  `MODEL_HUB_ADMIN_PASSWORD` 在服务端登录，12h 会话在进程内缓存、提前 1h
+  刷新；上游 401 时丢弃缓存重登一次，其余 4xx/5xx 原样透传。
+- 配置：`MODEL_HUB_ADMIN_PASSWORD` 为空时本页 fail-closed
+  （`503 MODEL_HUB_NOT_CONFIGURED`），不阻止控制台启动、不影响其他页面。
+- 失败语义：上游不可达 → 503 `UPSTREAM_UNAVAILABLE`；页面不展示过期缓存，
+  也不在本地重算金额。
+- 测试：`tests/org-cost-service.test.ts`（真实 HTTP fake model-hub：登录、
+  cookie 缓存、401 重登、窗口透传、未配置/不可达 fail-closed、维度白名单）。
+- 不做：ops-console 不代理 model-hub 的任务调用明细 CSV；需要明细时去
+  model-hub 管理台 `/admin` 的成本页导出（同一 `task_id` 口径）。

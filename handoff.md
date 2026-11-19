@@ -1,5 +1,27 @@
 # ops-console · handoff
 
+## 2026-11-19 Tier0 组织层 M3：组织成本页（F3.3 控制台侧）
+
+- ✅ `/app/costs` 上线（owner/operator 可读，`canViewOrg`）：三个维度 tab（任务 / 部门 / 岗位），
+  接 model-hub `GET /api/admin/costs/org`，表格展示轴值 / calls / input·output tokens / 成本，
+  顶部 totals 逐字来自上游。成本按 micro-USD 渲染，与 model-hub 管理台同一口径。
+- 改动：`src/server/upstream/model-hub.ts`（登录 + 12h 会话缓存 + 401 重登一次）、
+  `src/server/org-cost-service.ts`（维度白名单 + 透传）、`src/server/config.ts`（`MODEL_HUB_*`）、
+  `src/server/context.ts`（modelHub 单例）、`src/server/upstream/http.ts`（`RequestOptions.headers`）、
+  `src/pages/app/costs/index.astro`、`src/consts.ts`（导航「组织成本」）、`.env.example`、`CONTRACT.md §7`。
+- 认证：model-hub 管理面只认 owner 会话 cookie（不是 bearer）；控制台用
+  `MODEL_HUB_ADMIN_USERNAME/PASSWORD` 在服务端登录，cookie 只在进程内；密码为空时页面
+  fail-closed（`503 MODEL_HUB_NOT_CONFIGURED`），不阻止控制台启动、不影响其他页面。
+- 测试：`tests/org-cost-service.test.ts` 7 例（真实 HTTP fake model-hub：登录、cookie 缓存、
+  401 重登、窗口透传、未配置/不可达 fail-closed、维度白名单）。
+- 门：`npm run check` 0 error、`npm run lint` 0、`vitest run` 33 文件 236 用例全绿、
+  `npm run build` 成功（Node 22.23.4）。
+- 真实链路（本机 model-hub 8791 + ops-console 3022）：owner/operator 登录 200、
+  `/app/costs` 200 且渲染真实 `task-m3a2-proof2`、`?group_by=department` 200、
+  非法 `group_by=team` 回退 task 200、未登录 302；model-hub 返回 4 个 task /
+  6 calls / 24,581 micros，页面 totals 与上游逐字一致。
+- 未做：ops-console 不代理任务调用明细 CSV（需要明细时去 model-hub 管理台导出）。
+
 ## 2026-11-17/18 Tier0 组织层 F2.3 卡点看板端到端闭环 + 审批-恢复断链修复
 
 - ✅ 修复：`decideApproval` 对 proposal 携带 `taskId` 的决策改走 zeus `POST /api/v1/org/tasks/:taskId/resume`（zeus 原子完成"批决策 + 恢复任务"），不再走纯决策批准端点——旧路径会批完决策却让任务永远停在 `awaiting_decision`。D3 owner-only RBAC 仍在调用前强制。`ZeusUpstream` 新增 `resumeOrgTask`。
