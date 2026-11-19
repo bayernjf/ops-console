@@ -1,13 +1,15 @@
 ---
 import ConsoleLayout from '../../../../layouts/ConsoleLayout.astro';
 import OrgGoalCreateForm from '../../../../islands/OrgGoalCreateForm';
+import OrgGoalStatusActions from '../../../../islands/OrgGoalStatusActions';
 import { getContext } from '../../../../server/context.js';
 import { loadOrgGoals } from '../../../../server/org-goal-service.js';
-import { canViewOrg } from '../../../../server/rbac.js';
+import { canDoControlledAction, canViewOrg } from '../../../../server/rbac.js';
 import type { OrgGoalSchedule, OrgGoalSnapshot } from '../../../../server/upstream/types.js';
 
 const session = Astro.locals.session!;
 const allowed = canViewOrg(session.role);
+const canWrite = canDoControlledAction(session.role);
 
 // Tier0 org M5 F5.1/F5.2/F5.3: read-only goals + built-in template catalog,
 // plus a create form backed by POST /api/org/goals. Fail closed on upstream.
@@ -97,6 +99,7 @@ const updatedLabel = (value: string): string => value.slice(0, 16).replace('T', 
               <th scope="col">排班</th>
               <th scope="col">模板</th>
               <th scope="col">更新时间</th>
+              {canWrite ? <th scope="col">操作</th> : null}
             </tr>
           </thead>
           <tbody>
@@ -109,6 +112,11 @@ const updatedLabel = (value: string): string => value.slice(0, 16).replace('T', 
                 <td>{scheduleLabel(goal.schedule)}</td>
                 <td>{templateLabel(goal)}</td>
                 <td class="muted">{updatedLabel(goal.updatedAt)}</td>
+                {canWrite ? (
+                  <td>
+                    <OrgGoalStatusActions client:load goalId={goal.id} status={goal.status} />
+                  </td>
+                ) : null}
               </tr>
             ))}
           </tbody>

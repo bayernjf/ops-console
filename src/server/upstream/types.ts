@@ -350,6 +350,16 @@ export interface OrgGoalSnapshot {
   organizations: OrgOrganization[];
 }
 
+/**
+ * Statuses the console may set through PATCH. `done` is task-owned and not a
+ * manual console transition; `archived` is reversible via the same call.
+ */
+export type ConsoleGoalStatus = 'active' | 'paused' | 'archived';
+
+export interface UpdateOrgGoalStatusInput {
+  status: ConsoleGoalStatus;
+}
+
 // --- Tier0 org M4 F4.2: rule-derived experience candidates and SOP advisories ---
 
 export type ExperienceCandidateKind = 'failure-avoidance' | 'success-recipe';

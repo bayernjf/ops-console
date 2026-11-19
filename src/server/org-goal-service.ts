@@ -1,15 +1,18 @@
 import type { ServerContext } from './context.js';
 import { badRequest } from './errors.js';
 import type {
+  ConsoleGoalStatus,
   CreateOrgGoalInput,
   OrgGoalPeriod,
   OrgGoalSchedule,
   OrgGoalSnapshot,
   OrgGoalStatus,
+  UpdateOrgGoalStatusInput,
 } from './upstream/types.js';
 
 const PERIODS: readonly OrgGoalPeriod[] = ['daily', 'weekly', 'once'];
 const STATUSES: readonly OrgGoalStatus[] = ['active', 'paused', 'done', 'archived'];
+const CONSOLE_GOAL_STATUSES: readonly ConsoleGoalStatus[] = ['active', 'paused', 'archived'];
 
 /**
  * Tier0 org M5 F5.1/F5.3 read model: goals, the code-owned template catalog,
@@ -128,4 +131,26 @@ export function parseCreateGoalInput(raw: unknown): CreateOrgGoalInput {
     ...(taskTemplate !== undefined ? { taskTemplate } : {}),
     ...(schedule !== undefined ? { schedule } : {}),
   };
+}
+
+/**
+ * Validate the status-only PATCH body at the console boundary. The console
+ * deliberately exposes pause/resume/archive and not title/period/schedule
+ * edits yet, so any extra field is rejected instead of silently forwarded.
+ * zeus remains the owner of the actual transition and its 4xx passes through.
+ */
+export function parseUpdateGoalStatusInput(raw: unknown): UpdateOrgGoalStatusInput {
+  if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) {
+    throw badRequest('goal status body must be a JSON object');
+  }
+  const body = raw as Record<string, unknown>;
+  const extra = Object.keys(body).filter(field => field !== 'status');
+  if (extra.length > 0) {
+    throw badRequest(`only status can be updated from the console (got ${extra.join(', ')})`);
+  }
+  const status = body.status;
+  if (typeof status !== 'string' || !CONSOLE_GOAL_STATUSES.includes(status as ConsoleGoalStatus)) {
+    throw badRequest(`status must be one of ${CONSOLE_GOAL_STATUSES.join(', ')}`);
+  }
+  return { status: status as ConsoleGoalStatus };
 }
