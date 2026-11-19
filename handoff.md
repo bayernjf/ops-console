@@ -31,9 +31,13 @@
   - 非法 period 400 `VALIDATION_FAILED`；未登录 POST 401；operator 登录 200、页面 200
     可见同一目标（只读可读，写权限为 `canDoControlledAction`）。
   - 验证后停止临时 zeus/console，删除临时 SQLite。
-- 部署提示：OrbStack 的 `zeus` 容器（18787，已运行 3 天）是 M5 路由之前的镜像，
-  `GET /api/v1/org/goals` 仍 404；需重建/升级容器后，ops-console 的 `ZEUS_BASE_URL`
-  才能直接指向 18787。控制台页面在上游 404 时 fail-closed 显示加载失败。
+- 部署状态：OrbStack `zeus` 容器已于 2026-11-19 重建
+  （`docker compose up -d --build zeus`），18787 healthy，
+  `GET /api/v1/org/goals` / `goal-templates` 均 200；控制台 `.env` 的
+  `ZEUS_BASE_URL=18787` 已可直接使用。验收组织 `org:m5-verify`（M5验收组织）
+  已建，`/app/org/goals` 登录后 200 且显示组织与登记表单。
+- 验收数据：`org:m5-verify` 保留在容器 volume；zeus 暂无 DELETE organization
+  API，需清空时走 volume 或后续补 API。
 - 未做：控制台的编辑/暂停/归档/删除目标（M5 控制台侧只做登记与排班展示；zeus 已有
   PATCH/DELETE，需要时再加）。
 
