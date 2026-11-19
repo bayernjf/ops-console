@@ -183,8 +183,12 @@ F5.1 目标登记、F5.2 排班触发与 F5.3 模板分解（`src/http/org-v1.ts
 - 测试：`tests/org-goal-service.test.ts` 9 例（真实 HTTP fake zeus：
   read model 三路 fan-out、organizationId 透传/省略、创建透传、上游 400
   透传、weekly weekday/范围/互斥校验）。
-- 不做：控制台暂不做编辑、暂停、归档、删除目标（zeus 已有 PATCH/DELETE，
-  后续按需加）；不做目标执行历史/成本明细的第二套聚合。
+- 状态流转（2026-11-19 补充）：`PATCH /api/org/goals/:id` 只接受 `{status}`，
+  支持 active（恢复）/ paused（暂停）/ archived（归档）；任何其他字段在控制台
+  边界 400，`done` 属任务侧结果不开放手动设置。页面操作列由
+  `OrgGoalStatusActions` 岛屿承载，成功后整页 reload，列表仍与 zeus 同源。
+- 不做：控制台不开放标题/周期/模板编辑与删除（zeus DELETE 是硬删，需单独设计
+  确认与审计）；不做目标执行历史/成本明细的第二套聚合。
 
 ## 9. Tier0 org M4 F4.2：经验候选与 SOP 页（2026-11-19）
 

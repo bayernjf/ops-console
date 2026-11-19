@@ -1,5 +1,35 @@
 # ops-console · handoff
 
+## 2026-11-19 Tier0 组织层 M5 补充：目标状态流转（暂停/恢复/归档）
+
+- ✅ `/app/org/goals` 增加操作列（`canDoControlledAction`，owner/operator 均可用）：
+  active → 暂停/归档；paused → 恢复/归档；archived → 恢复；done → 归档。
+  成功后整页 reload，列表与 zeus 同源；失败时按钮旁 `role="alert"` 显示上游 message。
+- 改动：`src/server/upstream/types.ts`（`ConsoleGoalStatus` /
+  `UpdateOrgGoalStatusInput`）、`src/server/upstream/zeus.ts`
+  （`updateOrgGoalStatus` → `PATCH /api/v1/org/goals/:id`）、
+  `src/server/org-goal-service.ts`（`parseUpdateGoalStatusInput`）、
+  `src/pages/api/org/goals/[id].ts`（PATCH BFF）、
+  `src/pages/app/org/goals/index.astro`（操作列）、
+  `src/islands/OrgGoalStatusActions.tsx`、`CONTRACT.md §8`。
+- 写边界：PATCH 只接受 `{status}`，且只允许 active/paused/archived；任何额外字段
+  （title/period/schedule/template）在控制台边界 400，避免误改；`done` 属任务侧
+  结果不开放手动设置。zeus 仍拥有真实状态流转，4xx 原样透传。
+- 测试：`tests/org-goal-status-service.test.ts` 7 例（真实 HTTP fake zeus：
+  status-only PATCH 透传、暂停/恢复/归档、上游 404 透传、done/额外字段/非对象拒绝）。
+- 门：`astro check` 0 error、`eslint` 0、`vitest` 36 文件 261 用例全绿、
+  `astro build` 成功。
+- 真实链路（zeus 18787 + 临时 console 3022，owner/operator 登录）：
+  - `GET /api/org/goals` 200，`org:m5-verify` 存在、当时 0 个目标；
+  - `POST /api/org/goals` 201 创建 `goal-mwn5z17l-04oxr`（period=once，不排班）；
+  - PATCH `paused` / `active` / `archived` 均 200，返回状态与 updatedAt 同步变化；
+  - PATCH `done` 400 `VALIDATION_FAILED`；PATCH 带 `title` 400
+    `only status can be updated from the console (got title)`；
+  - `/app/org/goals` 200 命中「M5状态验收-归档」「已归档」「操作」；
+  - operator PATCH `active` 200（受控写两角色可用），owner 再 PATCH `archived` 200。
+  - 验收目标最终保留为 archived；zeus 无 DELETE goal 的控制台入口，删除仍不做。
+- 未做：标题/周期/模板编辑、删除目标；删除需单独设计确认与审计。
+
 ## 2026-11-19 Tier0 组织层 M4：经验候选与 SOP 页（F4.2 控制台侧）
 
 - ✅ `/app/org/experience` 上线（owner/operator 可读，`canViewOrg`）：候选表
