@@ -185,3 +185,35 @@ F5.1 目标登记、F5.2 排班触发与 F5.3 模板分解（`src/http/org-v1.ts
   透传、weekly weekday/范围/互斥校验）。
 - 不做：控制台暂不做编辑、暂停、归档、删除目标（zeus 已有 PATCH/DELETE，
   后续按需加）；不做目标执行历史/成本明细的第二套聚合。
+
+## 9. Tier0 org M4 F4.2：经验候选与 SOP 页（2026-11-19）
+
+依据 bayjf `Tier0-组织层五缺口落地方案-2026-11-17.md` §M4。zeus 已落 F4.2
+的候选派生（任务结算后由确定性规则生成）、人审提升与 SOP 目录
+（`GET /api/v1/org/experience`、`POST /api/v1/org/experience/:id/promote`、
+`GET /api/v1/org/sops`）；本页只做控制台侧的人审入口与只读目录，不建第二套
+候选规则、SOP 目录或本地缓存。
+
+- 页面：`/app/org/experience`（owner/operator 可读，`canViewOrg`）。候选表列为
+  标题/详情、组织、来源任务、目标技能、类型（failure-avoidance|success-recipe）、
+  状态（pending|promoted）、创建/提升时间；SOP 目录按 skillId 展示静态步骤
+  （order/tool/requiredGrade/humanCheckpoint/outputs）和已提升 advisory。
+- 权限：提升是 owner-only 人审闸门（`canPromoteExperience`）；operator 可读候选
+  与目录，但 POST 返回 403。候选未提升前不改变 SOP，避免一次坏任务直接“教会”
+  组织错误经验。
+- 上游：`ZeusUpstream.listExperienceCandidates(organizationId?)` →
+  `GET /api/v1/org/experience?organizationId=`；`promoteExperience(id, skillId?)` →
+  `POST /api/v1/org/experience/:id/promote`（body 可省略 skillId，默认候选自带
+  skill）；`listSops(organizationId?, skillId?)` → `GET /api/v1/org/sops`。Bearer
+  与 fail-closed 沿用 `callJson` 既有模式。
+- 服务端：`src/server/org-experience-service.ts` 的 `loadOrgExperience` 并行三路
+  fan-out（candidates / sops / organizations）；`parsePromoteExperienceInput`
+  只校验 body 为对象、`skillId` 为可选字符串（空串/空白视为未指定）并 trim。
+  候选是否存在、目标技能是否在目录、提升后的状态仍由 zeus 决定，4xx 原样透传。
+- 失败语义：zeus 不可达 → 503 `UPSTREAM_UNAVAILABLE`，页面 fail-closed 不展示
+  过期数据；提升失败时按钮旁 `role="alert"` 显示上游 message。
+- 测试：`tests/org-experience-service.test.ts` 9 例（真实 HTTP fake zeus：
+  read model 三路 fan-out、organizationId 透传/省略、skillId 过滤、promote
+  显式/省略 skillId、上游 404 透传、body 校验）。
+- 不做：控制台不做候选编辑/删除/批量提升；候选只由 zeus 任务结算派生，控制台
+  不提供伪造候选的入口。

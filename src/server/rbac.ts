@@ -39,3 +39,12 @@ export function canDoControlledAction(role: Role): boolean {
 export function canViewOrg(role: Role): boolean {
   return role === 'owner' || role === 'operator';
 }
+
+/**
+ * Tier0 org M4 F4.2: promoting an experience candidate changes the SOP
+ * catalog every operator follows, so it is an owner-only human review gate.
+ * Operators may read the candidate queue and catalog, but never promote.
+ */
+export function canPromoteExperience(role: Role): boolean {
+  return role === 'owner';
+}

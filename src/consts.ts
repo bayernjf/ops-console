@@ -11,6 +11,8 @@ export const NAV_ITEMS = [
   { href: '/app/org', label: '组织视图' },
   // Tier0 org M5: 目标登记与 UTC 排班（F5.1/F5.2/F5.3）。
   { href: '/app/org/goals', label: '目标与排班' },
+  // Tier0 org M4: 经验候选与 SOP 目录（F4.2，提升仅 owner）。
+  { href: '/app/org/experience', label: '经验与 SOP' },
   // Tier0 org M3: 岗位 / 部门 / 任务维度的模型成本（model-hub 只读聚合）。
   { href: '/app/costs', label: '组织成本' },
   // 会议回放（只读）：本地 meeting store 的时间线与主张图。

@@ -1,0 +1,236 @@
+---
+import ConsoleLayout from '../../../../layouts/ConsoleLayout.astro';
+import ExperiencePromoteButton from '../../../../islands/ExperiencePromoteButton';
+import { getContext } from '../../../../server/context.js';
+import { loadOrgExperience } from '../../../../server/org-experience-service.js';
+import { canPromoteExperience, canViewOrg } from '../../../../server/rbac.js';
+import type { OrgExperienceSnapshot } from '../../../../server/upstream/types.js';
+
+const session = Astro.locals.session!;
+const allowed = canViewOrg(session.role);
+const canPromote = canPromoteExperience(session.role);
+
+// Tier0 org M4 F4.2: rule-derived candidates + the SOP catalog with promoted
+// advisories. Read-only for both operating roles; promotion is an owner-only
+// human review gate backed by POST /api/org/experience/:id/promote.
+let snapshot: OrgExperienceSnapshot | null = null;
+let loadError: string | null = null;
+const orgFilter = Astro.url.searchParams.get('organization_id') ?? undefined;
+if (allowed) {
+  try {
+    snapshot = await loadOrgExperience(getContext(), orgFilter);
+  } catch (thrown) {
+    loadError = thrown instanceof Error ? thrown.message : String(thrown);
+  }
+}
+
+const organizations = snapshot?.organizations ?? [];
+const candidates = [...(snapshot?.candidates ?? [])].sort((a, b) =>
+  b.createdAt.localeCompare(a.createdAt),
+);
+const sops = [...(snapshot?.sops ?? [])].sort((a, b) => a.skillId.localeCompare(b.skillId));
+const pendingCount = candidates.filter(candidate => candidate.status === 'pending').length;
+const skillIds = sops.map(sop => sop.skillId);
+
+const kindLabel = (kind: string): string =>
+  ({ 'failure-avoidance': '失败规避', 'success-recipe': '成功配方' } as Record<string, string>)[kind] ??
+  kind;
+const statusLabel = (status: string): string =>
+  ({ pending: '待审', promoted: '已提升' } as Record<string, string>)[status] ?? status;
+const timeLabel = (value?: string): string =>
+  value ? value.slice(0, 16).replace('T', ' ') + ' UTC' : '-';
+---
+
+<ConsoleLayout title="经验与 SOP" session={session}>
+  {!allowed ? (
+    <div class="panel">
+      <p class="hint">经验与 SOP 需要运营角色（owner/operator）。当前角色 {session.role} 不可见。</p>
+    </div>
+  ) : loadError ? (
+    <div class="panel panel--error">
+      <p>上游暂时不可达（zeus 未响应），经验候选加载失败：{loadError}</p>
+      <p class="hint">页面已 fail-closed，不会展示过期缓存。</p>
+    </div>
+  ) : organizations.length === 0 ? (
+    <div class="panel">
+      <p>还没有组织。先在 zeus 侧创建组织、部门与岗位，任务结算后才会派生经验候选。</p>
+    </div>
+  ) : (
+    <>
+      <div class="toolbar">
+        <div class="head">
+          <h1>经验与 SOP</h1>
+          <span class="hint">F4.2 候选 {candidates.length} · 待审 {pendingCount} · SOP {sops.length}</span>
+        </div>
+        <div class="links">
+          <a class="link" href="/app/org">← 组织视图</a>
+          <a class="link" href="/app/org/goals">目标与排班 →</a>
+        </div>
+      </div>
+
+      {!canPromote ? (
+        <p class="hint gate">当前角色 {session.role} 只读：候选可由运营角色查看，但只有 owner 能把候选提升进 SOP。</p>
+      ) : null}
+
+      <section class="block">
+        <header class="block-head">
+          <h2>经验候选</h2>
+          <span class="hint">任务结算后由确定性规则派生；未提升前不会改变 SOP 目录。</span>
+        </header>
+        {candidates.length === 0 ? (
+          <div class="panel">
+            <p>还没有经验候选。等 zeus 的任务结算并命中候选规则后，这里会出现待审条目。</p>
+            <p class="hint">候选是惰性的：自动生成、人工提升，避免一次坏任务直接改写组织 SOP。</p>
+          </div>
+        ) : (
+          <table class="table">
+            <thead>
+              <tr>
+                <th scope="col">候选</th>
+                <th scope="col">组织</th>
+                <th scope="col">来源任务</th>
+                <th scope="col">目标技能</th>
+                <th scope="col">类型</th>
+                <th scope="col">状态</th>
+                <th scope="col">时间</th>
+                {canPromote ? <th scope="col">操作</th> : null}
+              </tr>
+            </thead>
+            <tbody>
+              {candidates.map(candidate => (
+                <tr>
+                  <td>
+                    <strong>{candidate.title}</strong>
+                    <p class="detail">{candidate.detail}</p>
+                    <code class="muted">{candidate.id}</code>
+                  </td>
+                  <td><code>{candidate.organizationId}</code></td>
+                  <td><code>{candidate.taskId}</code><br /><span class="muted">{candidate.ruleId}</span></td>
+                  <td><code>{candidate.skillId ?? '-'}</code></td>
+                  <td>{kindLabel(candidate.kind)}</td>
+                  <td>
+                    <span class:list={['tag', { 'tag--ok': candidate.status === 'promoted', 'tag--warn': candidate.status === 'pending' }]}>
+                      {statusLabel(candidate.status)}
+                    </span>
+                    {candidate.promotedAt ? <div class="muted">{timeLabel(candidate.promotedAt)}</div> : null}
+                  </td>
+                  <td class="muted">{timeLabel(candidate.createdAt)}</td>
+                  {canPromote ? (
+                    <td>
+                      {candidate.status === 'pending' ? (
+                        <ExperiencePromoteButton
+                          client:load
+                          candidateId={candidate.id}
+                          defaultSkillId={candidate.skillId}
+                          skills={skillIds}
+                        />
+                      ) : (
+                        <span class="muted">已提升</span>
+                      )}
+                    </td>
+                  ) : null}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </section>
+
+      <section class="block">
+        <header class="block-head">
+          <h2>SOP 目录</h2>
+          <span class="hint">静态步骤 + 已提升建议；建议是指导，不是可执行工具调用。</span>
+        </header>
+        {sops.length === 0 ? (
+          <div class="panel">
+            <p>还没有 SOP 目录。zeus 侧未配置岗位技能目录时，本页没有可展示的条目。</p>
+          </div>
+        ) : (
+          <div class="sop-list">
+            {sops.map(sop => (
+              <article class="sop">
+                <header class="sop-head">
+                  <code class="skill">{sop.skillId}</code>
+                  <span class="hint">{sop.workflow} · {sop.template}</span>
+                  <span class="tag">{sop.steps.length} 步</span>
+                  <span class:list={['tag', { 'tag--ok': sop.advisories.length > 0 }]}>{sop.advisories.length} 条建议</span>
+                </header>
+                {sop.steps.length === 0 ? (
+                  <p class="hint">该技能没有静态步骤。</p>
+                ) : (
+                  <table class="table table--compact">
+                    <thead>
+                      <tr>
+                        <th scope="col">#</th>
+                        <th scope="col">工具</th>
+                        <th scope="col">等级</th>
+                        <th scope="col">人审</th>
+                        <th scope="col">产出</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {sop.steps.map(step => (
+                        <tr>
+                          <td>{step.order}</td>
+                          <td><code>{step.tool}</code></td>
+                          <td>{step.requiredGrade}</td>
+                          <td>{step.humanCheckpoint ? '是' : '否'}</td>
+                          <td>{step.outputs.join('、') || '-'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+                {sop.advisories.length === 0 ? (
+                  <p class="hint">暂无已提升建议。</p>
+                ) : (
+                  <ul class="advisories">
+                    {sop.advisories.map(advisory => (
+                      <li>
+                        <strong>{advisory.summary}</strong>
+                        <p class="detail">{advisory.detail}</p>
+                        <span class="muted">{advisory.candidateId} · {timeLabel(advisory.promotedAt)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </article>
+            ))}
+          </div>
+        )}
+      </section>
+    </>
+  )}
+</ConsoleLayout>
+
+<style>
+  .toolbar { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
+  .head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+  .head h1 { font-size: 18px; margin: 0; }
+  .links { display: flex; align-items: center; gap: 12px; }
+  .link { color: var(--data); font-size: 13px; text-decoration: none; }
+  .link:hover { text-decoration: underline; }
+  .panel { padding: 16px; border: var(--hair); border-radius: 8px; background: var(--steel-850); margin-bottom: 14px; }
+  .panel--error { border-color: var(--alert); }
+  .hint { color: var(--ink-dim); font-size: 12px; margin: 0; }
+  .gate { margin-bottom: 12px; }
+  .block { margin-bottom: 22px; }
+  .block-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+  .block-head h2 { font-size: 15px; margin: 0; }
+  .table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .table th, .table td { border-bottom: var(--hair); padding: 8px 10px; text-align: left; vertical-align: top; }
+  .table th { color: var(--ink-dim); font-weight: 500; }
+  .table--compact { font-size: 12px; margin: 6px 0 10px; }
+  .table--compact th, .table--compact td { padding: 4px 8px; }
+  .tag { font-size: 11px; padding: 1px 6px; border-radius: 4px; border: var(--hair); color: var(--ink-dim); }
+  .tag--ok { color: var(--data); }
+  .tag--warn { color: var(--alert); }
+  .muted { color: var(--ink-dim); font-size: 12px; }
+  .detail { margin: 4px 0 6px; color: var(--ink-dim); font-size: 12px; line-height: 1.5; }
+  .sop-list { display: flex; flex-direction: column; gap: 12px; }
+  .sop { border: var(--hair); border-radius: 8px; background: var(--steel-850); padding: 12px 14px; }
+  .sop-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
+  .skill { color: var(--data); }
+  .advisories { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 8px; }
+  .advisories li { font-size: 12px; }
+</style>
