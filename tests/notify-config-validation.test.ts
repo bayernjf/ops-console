@@ -23,6 +23,7 @@ import {
 import { loadConfig } from '../src/server/config.js';
 import { ZeusUpstream } from '../src/server/upstream/zeus.js';
 import { CommerceUpstream } from '../src/server/upstream/commerce.js';
+import { ModelHubUpstream } from '../src/server/upstream/model-hub.js';
 import type { ServerContext } from '../src/server/context.js';
 import { PUT as putNotifyConfig } from '../src/pages/api/notify/config.js';
 import type { SessionPayload } from '../src/server/session.js';
@@ -66,6 +67,7 @@ describe('updateNotifyConfig webhookUrl guard (wired through the scheduler)', ()
       },
       zeus: new ZeusUpstream('http://127.0.0.1:1', 't'),
       commerce: new CommerceUpstream('http://127.0.0.1:1', 't'),
+      modelHub: new ModelHubUpstream('http://127.0.0.1:1', 'owner', ''),
     };
     startNotifyScheduler(ctx);
   });
