@@ -221,3 +221,37 @@ F5.1 目标登记、F5.2 排班触发与 F5.3 模板分解（`src/http/org-v1.ts
   显式/省略 skillId、上游 404 透传、body 校验）。
 - 不做：控制台不做候选编辑/删除/批量提升；候选只由 zeus 任务结算派生，控制台
   不提供伪造候选的入口。
+
+## 10. Tier0 org F2.1：组织建模页（owner-only 写，2026-11-19）
+
+依据 bayjf `Tier0-组织层五缺口落地方案-2026-11-17.md` §M2 F2.1。zeus 已有
+组织/部门/岗位创建与 agent 绑定路由；本页把此前只能走 curl 的结构性写入收进
+控制台，仍由 zeus 拥有 id、父级存在性、冲突与校验语义。
+
+- 页面：`/app/org/manage`（owner-only，`canManageOrg`）。operator 可打开页面但只
+  看到「仅 owner 可写」提示；`/app/org` 的组织建模入口仅 owner 可见。
+- 表单：创建组织（name、可选 id、scaleTier single|small|team|division|enterprise、
+  可选 parentId、concurrencyLimit 1..8）；创建部门（organizationId、name、mission、
+  可选 parentId）；创建岗位（organizationId、departmentId、name、可选
+  responsibilities/requiredSkills/allowedTools 逗号分隔、decisionScope D0–D3）；
+  岗位表逐行绑定 / 换绑 agent。成功后整页 reload，不做本地合并。
+- BFF：`POST /api/org/manage/organizations`、
+  `POST /api/org/manage/departments`、
+  `POST /api/org/manage/positions`、
+  `POST /api/org/manage/positions/:id/assign-agent`。四个端点都先过
+  `canManageOrg`，未登录 401、operator 403。
+- 服务端：`src/server/org-manage-service.ts` 的 `loadOrgManageSnapshot` 并行三路
+  fan-out（organizations / departments / positions）；四个 parse 函数只校验
+  body 形状与枚举/数值边界，不替 zeus 判断父级存在或 id 冲突。动态段 `:id` 先
+  `decodeURIComponent` 再交给上游，避免 `pos:xxx` 被双重编码。
+- 上游：`createOrganization` → `POST /api/v1/org/organizations`；
+  `createDepartment` → `POST /api/v1/org/departments`；
+  `createPosition` → `POST /api/v1/org/positions`；
+  `assignAgent` → `POST /api/v1/org/positions/:id/assign-agent` body `{agentId}`。
+  4xx 原样透传，页面 fail-closed。
+- 测试：`tests/org-manage-service.test.ts` 10 例（真实 HTTP fake zeus：
+  read model 三路 fan-out、组织/部门/岗位创建路径与 body、绑定 agent 路径、
+  上游 400 透传、scaleTier/concurrencyLimit 边界、部门必填、岗位数组归一化与
+  决策档、agentId 必填）。
+- 不做：部门/岗位编辑与删除、agent 解绑、credentialRefs 表单、组织树拖拽；
+  这些仍由 zeus API 或后续单独设计承接。

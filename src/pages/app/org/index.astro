@@ -2,11 +2,12 @@
 import ConsoleLayout from '../../../layouts/ConsoleLayout.astro';
 import { getContext } from '../../../server/context.js';
 import { loadOrgSnapshot } from '../../../server/org-service.js';
-import { canViewOrg } from '../../../server/rbac.js';
+import { canManageOrg, canViewOrg } from '../../../server/rbac.js';
 import type { OrgSnapshot } from '../../../server/upstream/types.js';
 
 const session = Astro.locals.session!;
 const allowed = canViewOrg(session.role);
+const canManage = allowed && canManageOrg(session.role);
 
 // Tier0 org M2 F2.1: read-only roster over zeus org v1. Fail-closed like every
 // page: on upstream failure no stale tree is shown.
@@ -45,8 +46,9 @@ const agentCount = positions.filter(p => p.agentId).length;
     </div>
   ) : !snapshot || snapshot.organizations.length === 0 ? (
     <div class="panel">
-      <p>还没有组织。先在 zeus 侧创建组织、部门与岗位，再回到本页。</p>
+      <p>还没有组织。owner 可到组织建模页创建，或由 zeus 侧写入后再回到本页。</p>
       <p class="hint">本页只读：数据全部来自 zeus 的 org organizations / departments / positions 三个 GET 端点。</p>
+      {canManage ? <p><a class="link" href="/app/org/manage">组织建模 →</a></p> : null}
     </div>
   ) : (
     <>
@@ -59,6 +61,7 @@ const agentCount = positions.filter(p => p.agentId).length;
         <div class="links">
           <span class="hint">部门 {departments.length} · 岗位 {positions.length} · 已绑定 {agentCount}</span>
           <a class="link" href="/app/org/tasks">任务队列 →</a>
+          {canManage ? <a class="link" href="/app/org/manage">组织建模 →</a> : null}
         </div>
       </div>
 

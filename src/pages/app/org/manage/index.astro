@@ -1,0 +1,83 @@
+---
+import ConsoleLayout from '../../../../layouts/ConsoleLayout.astro';
+import { getContext } from '../../../../server/context.js';
+import { loadOrgManageSnapshot } from '../../../../server/org-manage-service.js';
+import { canManageOrg } from '../../../../server/rbac.js';
+import type { OrgManageSnapshot } from '../../../../server/upstream/types.js';
+import OrgManagePanel from '../../../../islands/OrgManagePanel.js';
+
+const session = Astro.locals.session!;
+const allowed = canManageOrg(session.role);
+
+// Tier0 org F2.1: owner-only structural writes. Fail-closed on upstream
+// failure; no local placeholder roster is rendered.
+let snapshot: OrgManageSnapshot | null = null;
+let loadError: string | null = null;
+if (allowed) {
+  try {
+    snapshot = await loadOrgManageSnapshot(getContext());
+  } catch (thrown) {
+    loadError = thrown instanceof Error ? thrown.message : String(thrown);
+  }
+}
+---
+
+<ConsoleLayout title="组织建模" session={session}>
+  {!allowed ? (
+    <div class="panel">
+      <p class="hint">组织建模仅 owner 可写。operator 可回到组织视图只读查看。</p>
+      <p><a class="link" href="/app/org">← 返回组织视图</a></p>
+    </div>
+  ) : loadError ? (
+    <div class="panel panel--error">
+      <p>上游暂时不可达（zeus 未响应），组织数据加载失败：{loadError}</p>
+      <p class="hint">页面已 fail-closed，不会展示过期缓存。</p>
+    </div>
+  ) : !snapshot ? (
+    <div class="panel">
+      <p class="hint">组织数据不可用。</p>
+    </div>
+  ) : (
+    <>
+      <div class="toolbar">
+        <div>
+          <h1>组织建模</h1>
+          <p class="hint">创建组织 / 部门 / 岗位，并给岗位绑定 agent。写入直接落到 zeus org v1，不做本地缓存。</p>
+        </div>
+        <div class="links">
+          <a class="link" href="/app/org">← 组织视图</a>
+        </div>
+      </div>
+      <OrgManagePanel
+        organizations={snapshot.organizations.map(org => ({
+          id: org.id,
+          name: org.name,
+          scaleTier: org.scaleTier,
+        }))}
+        departments={snapshot.departments.map(dept => ({
+          id: dept.id,
+          organizationId: dept.organizationId,
+          name: dept.name,
+        }))}
+        positions={snapshot.positions.map(position => ({
+          id: position.id,
+          organizationId: position.organizationId,
+          departmentId: position.departmentId,
+          name: position.name,
+          agentId: position.agentId,
+        }))}
+      />
+    </>
+  )}
+</ConsoleLayout>
+
+<style>
+  .toolbar { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+  .toolbar h1 { font-size: 18px; margin: 0 0 4px; }
+  .links { display: flex; align-items: center; gap: 12px; }
+  .link { color: var(--data); font-size: 13px; text-decoration: none; }
+  .link:hover { text-decoration: underline; }
+  .panel { padding: 16px; border: var(--hair); border-radius: 8px; background: var(--steel-850); }
+  .panel--error { border-color: var(--alert); }
+  .hint { color: var(--ink-dim); font-size: 12px; margin: 0; }
+</style>

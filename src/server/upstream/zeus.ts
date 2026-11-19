@@ -1,8 +1,12 @@
 import { callJson } from './http.js';
 import type {
   ApprovalVerdict,
+  AssignAgentInput,
   ConsoleGoalStatus,
+  CreateDepartmentInput,
   CreateOrgGoalInput,
+  CreateOrganizationInput,
+  CreatePositionInput,
   DecisionApprovalResponse,
   DecisionPolicy,
   DecisionRecord,
@@ -148,6 +152,39 @@ export class ZeusUpstream {
       { query: organizationId ? { organizationId } : {} },
     );
     return body.positions;
+  }
+
+  /** Tier0 org F2.1: create an organization (owner-only at the console edge). */
+  async createOrganization(input: CreateOrganizationInput): Promise<OrgOrganization> {
+    return callJson<OrgOrganization>(this.baseUrl, this.token, '/api/v1/org/organizations', {
+      method: 'POST',
+      body: input,
+    });
+  }
+
+  async createDepartment(input: CreateDepartmentInput): Promise<OrgDepartment> {
+    return callJson<OrgDepartment>(this.baseUrl, this.token, '/api/v1/org/departments', {
+      method: 'POST',
+      body: input,
+    });
+  }
+
+  async createPosition(input: CreatePositionInput): Promise<OrgPosition> {
+    return callJson<OrgPosition>(this.baseUrl, this.token, '/api/v1/org/positions', {
+      method: 'POST',
+      body: input,
+    });
+  }
+
+  /** Bind or rebind an agent to a position; zeus validates both ids. */
+  async assignAgent(positionId: string, agentId: string): Promise<OrgPosition> {
+    const payload: AssignAgentInput = { agentId };
+    return callJson<OrgPosition>(
+      this.baseUrl,
+      this.token,
+      `/api/v1/org/positions/${encodeURIComponent(positionId)}/assign-agent`,
+      { method: 'POST', body: payload },
+    );
   }
 
   /** Tier0 org M2 F2.2: task queue projection (belt of GET /api/v1/org/tasks). */
