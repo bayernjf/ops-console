@@ -1,0 +1,138 @@
+---
+import ConsoleLayout from '../../../../layouts/ConsoleLayout.astro';
+import OrgGoalCreateForm from '../../../../islands/OrgGoalCreateForm';
+import { getContext } from '../../../../server/context.js';
+import { loadOrgGoals } from '../../../../server/org-goal-service.js';
+import { canViewOrg } from '../../../../server/rbac.js';
+import type { OrgGoalSchedule, OrgGoalSnapshot } from '../../../../server/upstream/types.js';
+
+const session = Astro.locals.session!;
+const allowed = canViewOrg(session.role);
+
+// Tier0 org M5 F5.1/F5.2/F5.3: read-only goals + built-in template catalog,
+// plus a create form backed by POST /api/org/goals. Fail closed on upstream.
+let snapshot: OrgGoalSnapshot | null = null;
+let loadError: string | null = null;
+const orgFilter = Astro.url.searchParams.get('organization_id') ?? undefined;
+if (allowed) {
+  try {
+    snapshot = await loadOrgGoals(getContext(), orgFilter);
+  } catch (thrown) {
+    loadError = thrown instanceof Error ? thrown.message : String(thrown);
+  }
+}
+
+const organizations = snapshot?.organizations ?? [];
+const templates = snapshot?.templates ?? [];
+const defaultOrgId = orgFilter ?? organizations[0]?.id ?? '';
+const goals = snapshot?.goals ?? [];
+
+const periodLabel = (period: string): string =>
+  ({ daily: '每日', weekly: '每周', once: '手动' } as Record<string, string>)[period] ?? period;
+const statusLabel = (status: string): string =>
+  ({ active: '进行中', paused: '已暂停', done: '已完成', archived: '已归档' } as Record<string, string>)[status] ?? status;
+const weekdayNames = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+const pad = (value: number): string => String(value).padStart(2, '0');
+const scheduleLabel = (schedule?: OrgGoalSchedule): string => {
+  if (!schedule) return '手动';
+  const weekday = schedule.weekdayUtc === undefined ? '' : `${weekdayNames[schedule.weekdayUtc] ?? ''} `;
+  return `${weekday}${pad(schedule.hourUtc)}:${pad(schedule.minuteUtc)} UTC`;
+};
+const templateLabel = (goal: { templateRef?: string; taskTemplate?: unknown }): string => {
+  if (goal.templateRef) {
+    return templates.find(template => template.id === goal.templateRef)?.title ?? goal.templateRef;
+  }
+  return goal.taskTemplate ? '单任务模板' : '-';
+};
+const updatedLabel = (value: string): string => value.slice(0, 16).replace('T', ' ') + ' UTC';
+---
+
+<ConsoleLayout title="目标与排班" session={session}>
+  {!allowed ? (
+    <div class="panel">
+      <p class="hint">目标与排班需要运营角色（owner/operator）。当前角色 {session.role} 不可见。</p>
+    </div>
+  ) : loadError ? (
+    <div class="panel panel--error">
+      <p>上游暂时不可达（zeus 未响应），目标数据加载失败：{loadError}</p>
+      <p class="hint">页面已 fail-closed，不会展示过期缓存。</p>
+    </div>
+  ) : organizations.length === 0 ? (
+    <div class="panel">
+      <p>还没有组织。先在 zeus 侧创建组织、部门与岗位，再回到本页登记目标。</p>
+    </div>
+  ) : (
+    <>
+      <div class="toolbar">
+        <div class="head">
+          <h1>目标与排班</h1>
+          <span class="hint">F5.1 目标登记 · F5.2 UTC 排班 · F5.3 内置模板</span>
+        </div>
+        <div class="links">
+          <a class="link" href="/app/org">← 组织视图</a>
+          <a class="link" href="/app/org/tasks">任务队列 →</a>
+        </div>
+      </div>
+
+      <OrgGoalCreateForm
+        client:load
+        organizations={organizations.map(org => ({ id: org.id, name: org.name }))}
+        templates={templates.map(template => ({ id: template.id, title: template.title }))}
+        initialOrganizationId={defaultOrgId}
+      />
+
+      {goals.length === 0 ? (
+        <div class="panel">
+          <p>还没有目标。用上面的表单登记第一个每日/每周目标，zeus 的调度器会按 UTC 窗口投递任务。</p>
+          <p class="hint">周期为「手动」的目标只登记、不排班；模板为空时按单任务模板执行。</p>
+        </div>
+      ) : (
+        <table class="table">
+          <thead>
+            <tr>
+              <th scope="col">目标</th>
+              <th scope="col">组织</th>
+              <th scope="col">周期</th>
+              <th scope="col">状态</th>
+              <th scope="col">排班</th>
+              <th scope="col">模板</th>
+              <th scope="col">更新时间</th>
+            </tr>
+          </thead>
+          <tbody>
+            {goals.map(goal => (
+              <tr>
+                <td><strong>{goal.title}</strong><br /><code class="muted">{goal.id}</code></td>
+                <td><code>{goal.organizationId}</code></td>
+                <td>{periodLabel(goal.period)}</td>
+                <td><span class:list={['tag', { 'tag--ok': goal.status === 'active', 'tag--warn': goal.status === 'paused' }]}>{statusLabel(goal.status)}</span></td>
+                <td>{scheduleLabel(goal.schedule)}</td>
+                <td>{templateLabel(goal)}</td>
+                <td class="muted">{updatedLabel(goal.updatedAt)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </>
+  )}
+</ConsoleLayout>
+
+<style>
+  .toolbar { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
+  .head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+  .head h1 { font-size: 18px; margin: 0; }
+  .links { display: flex; align-items: center; gap: 12px; }
+  .link { color: var(--data); font-size: 13px; text-decoration: none; }
+  .link:hover { text-decoration: underline; }
+  .panel { padding: 16px; border: var(--hair); border-radius: 8px; background: var(--steel-850); margin-bottom: 14px; }
+  .panel--error { border-color: var(--alert); }
+  .hint { color: var(--ink-dim); font-size: 12px; margin: 0; }
+  .table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .table th, .table td { border-bottom: var(--hair); padding: 8px 10px; text-align: left; vertical-align: top; }
+  .table th { color: var(--ink-dim); font-weight: 500; }
+  .tag { font-size: 11px; padding: 1px 6px; border-radius: 4px; border: var(--hair); color: var(--ink-dim); }
+  .tag--ok { color: var(--data); }
+  .tag--warn { color: var(--alert); }
+  .muted { color: var(--ink-dim); font-size: 12px; }
+</style>
