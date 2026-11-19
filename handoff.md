@@ -1,5 +1,41 @@
 # ops-console · handoff
 
+## 2026-11-19 Tier0 组织层 F2.1 控制台侧：owner-only 组织建模
+
+- ✅ `/app/org/manage` 上线（owner-only，`canManageOrg`）：三个创建表单
+  （组织 / 部门 / 岗位）+ 岗位表逐行绑定 / 换绑 agent；成功后整页 reload，
+  数据与 zeus 同源。`/app/org` 的「组织建模 →」入口仅 owner 可见；operator
+  可打开页面但只看到 owner-only 提示，写请求 403。
+- 改动：`src/server/upstream/types.ts`（`OrgScaleTier` / 四个 create/assign
+  input / `OrgManageSnapshot`）、`src/server/upstream/zeus.ts`（四个写方法）、
+  `src/server/org-manage-service.ts`（三路 fan-out + 四个 parse）、
+  `src/server/rbac.ts`（`canManageOrg`）、四个 BFF
+  （`/api/org/manage/organizations|departments|positions` 与
+  `positions/:id/assign-agent`）、`src/pages/app/org/manage/index.astro`、
+  `src/islands/OrgManagePanel.tsx`、`src/pages/app/org/index.astro`（owner 入口）。
+- 写边界：控制台只校验 body 形状与枚举/数值边界（scaleTier、concurrencyLimit
+  1..8、decisionScope D0–D3、必填 name/mission/org/department）；id 冲突、父级
+  存在性、岗位所属部门仍由 zeus 判断，4xx 原样透传。动态段 id 先
+  `decodeURIComponent`，避免 `pos:xxx` 双重编码后 404。
+- 测试：`tests/org-manage-service.test.ts` 10 例（真实 HTTP fake zeus：
+  read model 三路 fan-out、组织/部门/岗位创建路径与 body、绑定 agent 路径、
+  上游 400 透传、scaleTier/concurrencyLimit 边界、部门必填、岗位数组归一化与
+  决策档、agentId 必填）。
+- 门：`astro check` 0 error、`eslint` 0、`vitest` 37 文件 271 用例全绿、
+  `astro build` 成功。
+- 真实链路（zeus 18787 + 临时 console 3022）：
+  - owner 登录 200；`/app/org/manage` 200；`/app/org` 200 且有「组织建模 →」；
+  - `POST /api/org/manage/organizations` 201 创建
+    `org:console-manage-verify`（scaleTier=team，concurrencyLimit=2）；
+  - `POST .../departments` 201 创建 `dept:console-manage-verify`；
+  - `POST .../positions` 201 创建 `pos:console-manage-verify`（D1）；
+  - `POST .../positions/pos%3Aconsole-manage-verify/assign-agent` 200，绑定
+    `agent:console-verify-2`；页面 200 命中组织/部门/岗位与 agent；
+  - operator 页面 200 仅 owner-only 提示，POST 403 `FORBIDDEN`；未登录 POST
+    401 `UNAUTHORIZED`。
+  - 验收组织/部门/岗位保留在 zeus volume；控制台不做删除。
+- 未做：部门/岗位编辑与删除、agent 解绑、credentialRefs 表单、组织树拖拽。
+
 ## 2026-11-19 Tier0 组织层 M5 补充：目标状态流转（暂停/恢复/归档）
 
 - ✅ `/app/org/goals` 增加操作列（`canDoControlledAction`，owner/operator 均可用）：
