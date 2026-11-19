@@ -6,12 +6,14 @@ import type {
   DecisionPolicy,
   DecisionRecord,
   DecisionStatus,
+  ExperienceCandidate,
   OrgDepartment,
   OrgGoal,
   OrgGoalTemplate,
   OrgOrganization,
   OrgPosition,
   OrgTask,
+  PositionSopView,
   TraceListFilter,
   TraceQueryResult,
 } from './types.js';
@@ -185,6 +187,47 @@ export class ZeusUpstream {
       method: 'POST',
       body: input,
     });
+  }
+
+  /** F4.2: rule-derived experience candidates (read-only projection). */
+  async listExperienceCandidates(organizationId?: string): Promise<ExperienceCandidate[]> {
+    const body = await callJson<{ candidates: ExperienceCandidate[] }>(
+      this.baseUrl,
+      this.token,
+      '/api/v1/org/experience',
+      { query: organizationId ? { organizationId } : {} },
+    );
+    return body.candidates;
+  }
+
+  /**
+   * F4.2 human review gate: promote one pending candidate into the SOP
+   * catalog. zeus owns the gate; a missing candidate or unknown target skill
+   * comes back as its own 4xx and is passed through unchanged.
+   */
+  async promoteExperience(id: string, skillId?: string): Promise<ExperienceCandidate> {
+    return callJson<ExperienceCandidate>(
+      this.baseUrl,
+      this.token,
+      `/api/v1/org/experience/${encodeURIComponent(id)}/promote`,
+      { method: 'POST', body: skillId ? { skillId } : {} },
+    );
+  }
+
+  /** F4.2: static SOP catalog with promoted advisories, optionally filtered. */
+  async listSops(organizationId?: string, skillId?: string): Promise<PositionSopView[]> {
+    const body = await callJson<{ sops: PositionSopView[] }>(
+      this.baseUrl,
+      this.token,
+      '/api/v1/org/sops',
+      {
+        query: {
+          ...(organizationId ? { organizationId } : {}),
+          ...(skillId ? { skillId } : {}),
+        },
+      },
+    );
+    return body.sops;
   }
 
   /**

@@ -349,3 +349,63 @@ export interface OrgGoalSnapshot {
   templates: OrgGoalTemplate[];
   organizations: OrgOrganization[];
 }
+
+// --- Tier0 org M4 F4.2: rule-derived experience candidates and SOP advisories ---
+
+export type ExperienceCandidateKind = 'failure-avoidance' | 'success-recipe';
+export type ExperienceCandidateStatus = 'pending' | 'promoted';
+
+/**
+ * An inert insight derived from a settled task. It never changes the SOP
+ * catalog until a human promotes it (zeus POST .../promote).
+ */
+export interface ExperienceCandidate {
+  format: 'zeus-experience-candidate';
+  version: 1;
+  id: string;
+  organizationId: string;
+  taskId: string;
+  skillId?: string;
+  ruleId: string;
+  kind: ExperienceCandidateKind;
+  title: string;
+  detail: string;
+  createdAt: string;
+  status: ExperienceCandidateStatus;
+  promotedAt?: string;
+}
+
+/** A promoted candidate as it appears in the catalog (advisory, not a step). */
+export interface SopAdvisory {
+  id: string;
+  candidateId: string;
+  skillId: string;
+  summary: string;
+  detail: string;
+  promotedAt: string;
+}
+
+export interface PositionSopStep {
+  id: string;
+  order: number;
+  tool: string;
+  requiredGrade: string;
+  humanCheckpoint: boolean;
+  outputs: string[];
+}
+
+/** Static SOP plus the advisories promoted into it. */
+export interface PositionSopView {
+  skillId: string;
+  workflow: string;
+  template: string;
+  steps: PositionSopStep[];
+  advisories: SopAdvisory[];
+}
+
+/** Read model used by the experience page: candidates, catalog and org filter. */
+export interface OrgExperienceSnapshot {
+  candidates: ExperienceCandidate[];
+  sops: PositionSopView[];
+  organizations: OrgOrganization[];
+}
