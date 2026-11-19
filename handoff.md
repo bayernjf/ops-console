@@ -1,5 +1,42 @@
 # ops-console · handoff
 
+## 2026-11-19 Tier0 组织层 M5：目标与排班页（F5.1/F5.2/F5.3 控制台侧）
+
+- ✅ `/app/org/goals` 上线（owner/operator 可读，`canViewOrg`）：只读列出组织目标
+  （标题 / 组织 / 周期 / 状态 / UTC 排班 / 模板 / 更新时间）+ 登记表单（组织、标题、
+  周期 daily|weekly|once、内置模板、UTC 时·分、weekly 星期、可选 Hub 项目）。
+  创建走 `POST /api/org/goals`（`canDoControlledAction`），服务端校验后逐字透传
+  zeus `POST /api/v1/org/goals`。
+- 改动：`src/server/upstream/types.ts`（goal / schedule / template 类型）、
+  `src/server/upstream/zeus.ts`（`listOrgGoals` / `listGoalTemplates` /
+  `createOrgGoal`）、`src/server/org-goal-service.ts`（read model + 表单校验）、
+  `src/pages/api/org/goals/index.ts`（GET/POST BFF）、
+  `src/pages/app/org/goals/index.astro`、`src/islands/OrgGoalCreateForm.tsx`、
+  `src/consts.ts`（导航「目标与排班」）、`CONTRACT.md §8`。
+- 读模型：`loadOrgGoals` 并行拉 goals + goal-templates + organizations；不建本地缓存，
+  不做第二套调度/模板展开，页面只展示 zeus 的真相。
+- 写边界：`parseCreateGoalInput` 只校验组织/标题必填、period/status 枚举、
+  schedule 范围与 weekly weekday、templateRef/taskTemplate 互斥；模板是否存在、
+  period/schedule 耦合、幂等键仍由 zeus 决定，4xx 原样透传。
+- 测试：`tests/org-goal-service.test.ts` 9 例（真实 HTTP fake zeus：read model 三路
+  fan-out、organizationId 透传/省略、创建透传、上游 400 透传、weekly weekday/
+  范围/互斥校验）。
+- 门：`astro check` 0 error、`eslint` 0、`vitest` 34 文件 245 用例全绿、
+  `astro build` 成功。
+- 真实链路（本机临时 zeus 3020 + ops-console 3022，临时 SQLite `/tmp/zeus-m5-verify.db`）：
+  - `GET /api/v1/org/goals` / `goal-templates` 200；创建组织 `org:m5` 201。
+  - owner 登录 200、`/app/org/goals` 200 命中「目标与排班」「登记目标」「M5验收组织」；
+    `POST /api/org/goals` 201 落 `goal-mwn42n3q-0znlp`（daily 08:00 UTC + weekly-report），
+    刷新页面命中「每日经营日报」「周报流水线」「08:00 UTC」「进行中」。
+  - 非法 period 400 `VALIDATION_FAILED`；未登录 POST 401；operator 登录 200、页面 200
+    可见同一目标（只读可读，写权限为 `canDoControlledAction`）。
+  - 验证后停止临时 zeus/console，删除临时 SQLite。
+- 部署提示：OrbStack 的 `zeus` 容器（18787，已运行 3 天）是 M5 路由之前的镜像，
+  `GET /api/v1/org/goals` 仍 404；需重建/升级容器后，ops-console 的 `ZEUS_BASE_URL`
+  才能直接指向 18787。控制台页面在上游 404 时 fail-closed 显示加载失败。
+- 未做：控制台的编辑/暂停/归档/删除目标（M5 控制台侧只做登记与排班展示；zeus 已有
+  PATCH/DELETE，需要时再加）。
+
 ## 2026-11-19 Tier0 组织层 M3：组织成本页（F3.3 控制台侧）
 
 - ✅ `/app/costs` 上线（owner/operator 可读，`canViewOrg`）：三个维度 tab（任务 / 部门 / 岗位），

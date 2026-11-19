@@ -154,3 +154,34 @@ ops-console 纯只读 BFF，不建任何本地存储）。
   cookie 缓存、401 重登、窗口透传、未配置/不可达 fail-closed、维度白名单）。
 - 不做：ops-console 不代理 model-hub 的任务调用明细 CSV；需要明细时去
   model-hub 管理台 `/admin` 的成本页导出（同一 `task_id` 口径）。
+
+## 8. Tier0 org M5 F5.1/F5.2/F5.3：目标与排班页（2026-11-19）
+
+依据 bayjf `Tier0-组织层五缺口落地方案-2026-11-17.md` §M5。zeus 已落
+F5.1 目标登记、F5.2 排班触发与 F5.3 模板分解（`src/http/org-v1.ts`、
+`src/core/org/scheduling/*`、`goal-templates.ts`）；本页只做控制台侧的
+只读投影与目标登记，不建第二套调度、模板展开或本地缓存。
+
+- 页面：`/app/org/goals`（owner/operator 可读，`canViewOrg`）。只读表格列为
+  目标、组织、周期、状态、UTC 排班、模板、更新时间；登记表单字段为组织、
+  标题、周期（daily/weekly/once）、内置模板、UTC 时/分、weekly 星期、
+  可选 Hub 项目。创建成功整页 reload，确保列表与 zeus 同源。
+- 上游：`ZeusUpstream.listOrgGoals(organizationId?)` →
+  `GET /api/v1/org/goals?organizationId=`；`listGoalTemplates()` →
+  `GET /api/v1/org/goal-templates`；`createOrgGoal(input)` →
+  `POST /api/v1/org/goals`；组织下拉复用 `listOrganizations()`。Bearer 与
+  fail-closed 沿用 `callJson` 既有模式。
+- 服务端：`src/server/org-goal-service.ts` 的 `loadOrgGoals` 并行三路
+  fan-out（goals / templates / organizations）；`parseCreateGoalInput`
+  校验组织与标题必填、period/status 枚举、schedule.hourUtc 0–23、
+  minuteUtc 0–59、weekdayUtc 0–6、weekly 必须有 weekdayUtc、
+  templateRef 与 taskTemplate 互斥。
+- 写边界：模板是否存在、period 与 schedule 的耦合、每窗口幂等键仍由 zeus
+  决定；控制台 4xx/5xx 原样透传，不把上游校验改写成本地规则。
+- 失败语义：zeus 不可达 → 503 `UPSTREAM_UNAVAILABLE`，页面 fail-closed
+  不展示过期数据；创建失败时表单 `role="alert"` 显示上游 message。
+- 测试：`tests/org-goal-service.test.ts` 9 例（真实 HTTP fake zeus：
+  read model 三路 fan-out、organizationId 透传/省略、创建透传、上游 400
+  透传、weekly weekday/范围/互斥校验）。
+- 不做：控制台暂不做编辑、暂停、归档、删除目标（zeus 已有 PATCH/DELETE，
+  后续按需加）；不做目标执行历史/成本明细的第二套聚合。
