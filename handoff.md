@@ -1,5 +1,43 @@
 # ops-console · handoff
 
+## 2026-11-19 Tier0 组织层 M4：经验候选与 SOP 页（F4.2 控制台侧）
+
+- ✅ `/app/org/experience` 上线（owner/operator 可读，`canViewOrg`）：候选表
+  （标题 / 详情 / 组织 / 来源任务 / 目标技能 / 类型 failure-avoidance|success-recipe /
+  状态 pending|promoted / 时间）+ SOP 目录（静态步骤 + 已提升建议 advisory）。
+  owner 每行可「提升到 SOP」，operator 只读并显示提示。
+- 改动：`src/server/upstream/types.ts`（`ExperienceCandidate` / `SopAdvisory` /
+  `PositionSopView` / `OrgExperienceSnapshot`）、`src/server/upstream/zeus.ts`
+  （`listExperienceCandidates` / `promoteExperience` / `listSops`）、
+  `src/server/org-experience-service.ts`（read model + promote body 校验）、
+  `src/server/rbac.ts`（`canPromoteExperience`，owner-only）、
+  `src/pages/api/org/experience/index.ts`（GET BFF）、
+  `src/pages/api/org/experience/[id]/promote.ts`（POST BFF）、
+  `src/pages/app/org/experience/index.astro`、`src/islands/ExperiencePromoteButton.tsx`、
+  `src/consts.ts`（导航「经验与 SOP」）、`CONTRACT.md §9`。
+- 读模型：`loadOrgExperience` 并行拉 candidates + sops + organizations；
+  候选按 createdAt 倒序、SOP 按 skillId 排序；不建本地缓存，不做第二套候选规则。
+- 写边界：`POST /api/org/experience/:id/promote` 是 owner-only 人审闸门
+  （`canPromoteExperience`）；`parsePromoteExperienceInput` 只校验 body 形状与
+  `skillId` 可选字符串。候选是否存在、目标技能是否在 SOP 目录仍由 zeus 决定，
+  其 4xx（如 `EXPERIENCE_NOT_FOUND`）逐字透传。
+- 测试：`tests/org-experience-service.test.ts` 9 例（真实 HTTP fake zeus：
+  read model 三路 fan-out、organizationId 透传/省略、skillId 过滤、promote 显式/
+  省略 skillId、上游 404 透传、body 校验）。
+- 门：`astro check` 0 error、`eslint` 0、`vitest` 35 文件 254 用例全绿、
+  `astro build` 成功。
+- 真实链路（zeus 18787 容器 + 本机临时 ops-console 3022）：
+  - owner 登录 200、`/app/org/experience` 200 命中「经验与 SOP」「经验候选」「SOP 目录」；
+  - `GET /api/org/experience` 200，keys `candidates/sops/organizations`；
+    真实候选 0 条、SOP 3 条、组织 1 个（尚无任务结算派生候选）；
+  - `POST /api/org/experience/missing/promote` 返回 404 `EXPERIENCE_NOT_FOUND`，
+    上游错误体原样透传；
+  - operator 页面 200 且显示 owner-only 只读提示，POST 403 `FORBIDDEN`；
+    未登录访问 API 401。
+  - 验证后停止临时 console，未改 zeus/数据库。
+- 未做：控制台不做候选编辑/删除/批量提升；候选只由 zeus 任务结算派生，
+  控制台不提供伪造候选的入口。
+
 ## 2026-11-19 Tier0 组织层 M5：目标与排班页（F5.1/F5.2/F5.3 控制台侧）
 
 - ✅ `/app/org/goals` 上线（owner/operator 可读，`canViewOrg`）：只读列出组织目标
