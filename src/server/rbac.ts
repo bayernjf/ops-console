@@ -48,3 +48,12 @@ export function canViewOrg(role: Role): boolean {
 export function canPromoteExperience(role: Role): boolean {
   return role === 'owner';
 }
+
+/**
+ * Tier0 org F2.1: organization/department/position creation and agent binding
+ * change the structural roster. Owner-only; operators keep the read-only
+ * roster view at /app/org.
+ */
+export function canManageOrg(role: Role): boolean {
+  return role === 'owner';
+}

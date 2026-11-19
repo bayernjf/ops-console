@@ -277,6 +277,49 @@ export interface OrgSnapshot {
   tasks: OrgTask[];
 }
 
+// --- Tier0 org M2 F2.1: owner-only org modeling writes ---
+
+export type OrgScaleTier = 'single' | 'small' | 'team' | 'division' | 'enterprise';
+
+export interface CreateOrganizationInput {
+  id?: string;
+  name: string;
+  scaleTier?: OrgScaleTier;
+  parentId?: string;
+  /** zeus bounds this to 1..8; 1 = serial. */
+  concurrencyLimit?: number;
+}
+
+export interface CreateDepartmentInput {
+  id?: string;
+  organizationId: string;
+  name: string;
+  mission: string;
+  parentId?: string;
+}
+
+export interface CreatePositionInput {
+  id?: string;
+  organizationId: string;
+  departmentId: string;
+  name: string;
+  responsibilities?: string[];
+  requiredSkills?: string[];
+  allowedTools?: string[];
+  decisionScope?: Grade;
+}
+
+export interface AssignAgentInput {
+  agentId: string;
+}
+
+/** Read model used by the org modeling page. */
+export interface OrgManageSnapshot {
+  organizations: OrgOrganization[];
+  departments: OrgDepartment[];
+  positions: OrgPosition[];
+}
+
 // --- Tier0 org M5 F5.1/F5.2/F5.3: goals, schedules and built-in templates ---
 
 export type OrgGoalPeriod = 'daily' | 'weekly' | 'once';
