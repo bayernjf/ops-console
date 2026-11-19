@@ -56,6 +56,9 @@ export interface Config {
   accounts: Record<Role, RoleAccount>;
   zeus: { baseUrl: string; token: string };
   commerce: { baseUrl: string; token: string };
+  /** Reader account for model-hub's cookie-authenticated admin cost API.
+   *  An empty password disables the org cost page (it fails closed). */
+  modelHub: { baseUrl: string; username: string; password: string };
   publicBaseUrl: string;
   meetings: {
     /** Local meeting store written by zeus `npm run meeting` (JSON per meeting). */
@@ -111,6 +114,11 @@ export function loadConfig(): Config {
     commerce: {
       baseUrl: required('COMMERCE_BASE_URL', 'http://127.0.0.1:3021'),
       token: requiredSecret('COMMERCE_API_TOKEN'),
+    },
+    modelHub: {
+      baseUrl: required('MODEL_HUB_BASE_URL', 'http://127.0.0.1:8791'),
+      username: required('MODEL_HUB_ADMIN_USERNAME', 'owner'),
+      password: process.env.MODEL_HUB_ADMIN_PASSWORD ?? '',
     },
     publicBaseUrl: required('OPS_PUBLIC_BASE_URL', 'http://127.0.0.1:3022'),
     meetings: {

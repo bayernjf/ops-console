@@ -22,6 +22,9 @@ export interface RequestOptions {
   body?: unknown;
   query?: Record<string, string | undefined>;
   signal?: AbortSignal;
+  /** Extra request headers merged last, so a caller can override the default
+   *  bearer header (model-hub admin uses a session cookie instead). */
+  headers?: Record<string, string>;
   /** Total request timeout in ms (default 10s). Ignored when `signal` is
    *  provided — an explicit caller signal always wins. */
   timeoutMs?: number;
@@ -47,6 +50,7 @@ export async function callJson<T>(
   const headers: Record<string, string> = {
     Authorization: `Bearer ${token}`,
     Accept: 'application/json',
+    ...options.headers,
   };
   let response: Response;
   try {

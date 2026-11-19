@@ -1,0 +1,151 @@
+---
+import ConsoleLayout from '../../../layouts/ConsoleLayout.astro';
+import { getContext } from '../../../server/context.js';
+import { loadOrgCosts, parseOrgCostDimension } from '../../../server/org-cost-service.js';
+import { canViewOrg } from '../../../server/rbac.js';
+import type { OrgCostResponse } from '../../../server/upstream/model-hub.js';
+
+const session = Astro.locals.session!;
+const allowed = canViewOrg(session.role);
+
+// Tier0 org M3 F3.3: read-only org cost page over model-hub's
+// /api/admin/costs/org. The console renders upstream rows and totals verbatim;
+// it does not recompute money locally. Fail closed on any upstream error.
+const dimension = parseOrgCostDimension(Astro.url.searchParams.get('group_by'));
+const from = Astro.url.searchParams.get('from')?.trim() || undefined;
+const to = Astro.url.searchParams.get('to')?.trim() || undefined;
+
+let costs: OrgCostResponse | null = null;
+let loadError: string | null = null;
+if (allowed) {
+  try {
+    costs = await loadOrgCosts(getContext(), dimension, {
+      ...(from ? { from } : {}),
+      ...(to ? { to } : {}),
+    });
+  } catch (thrown) {
+    loadError = thrown instanceof Error ? thrown.message : String(thrown);
+  }
+}
+
+const tabs = [
+  { value: 'task', label: '任务' },
+  { value: 'department', label: '部门' },
+  { value: 'position', label: '岗位' },
+] as const;
+
+/** micro-USD, same unit and edge-case rule as model-hub's money formatter. */
+const usd = (micros: number): string => {
+  const dollars = micros / 1_000_000;
+  if (micros > 0 && dollars < 0.00005) return '<$0.0001';
+  return `$${dollars.toFixed(4)}`;
+};
+const num = (value: number): string => value.toLocaleString('en-US');
+const tabHref = (value: string): string => {
+  const params = new URLSearchParams({ group_by: value });
+  if (from) params.set('from', from);
+  if (to) params.set('to', to);
+  return `/app/costs?${params.toString()}`;
+};
+---
+
+<ConsoleLayout title="组织成本" session={session}>
+  {!allowed ? (
+    <div class="panel">
+      <p class="hint">组织成本需要运营角色（owner/operator）。当前角色 {session.role} 不可见。</p>
+    </div>
+  ) : loadError ? (
+    <div class="panel panel--error">
+      <p>上游暂时不可达（model-hub 未响应或未配置），成本数据加载失败：{loadError}</p>
+      <p class="hint">页面已 fail-closed，不会展示过期缓存。</p>
+    </div>
+  ) : (
+    <>
+      <div class="toolbar">
+        <div class="head">
+          <h1>组织成本</h1>
+          <span class="hint">model-hub usage_events 的岗位 / 部门 / 任务归因聚合</span>
+        </div>
+        <div class="tabs" role="tablist" aria-label="成本维度">
+          {tabs.map(tab => (
+            <a
+              class:list={['tab', { 'tab--active': tab.value === dimension }]}
+              href={tabHref(tab.value)}
+              role="tab"
+              aria-selected={tab.value === dimension}
+            >
+              {tab.label}
+            </a>
+          ))}
+        </div>
+      </div>
+
+      {from || to ? (
+        <p class="hint window">窗口：{from ?? '不限'} → {to ?? '不限'}（UTC 日期，含端点）</p>
+      ) : null}
+
+      {!costs || costs.rows.length === 0 ? (
+        <div class="panel">
+          <p>当前窗口没有可归因的调用。</p>
+          <p class="hint">
+            只有带 position_id / department_id / task_id 的 usage_events 才会进入组织成本分面；
+            未归因调用仍可在 model-hub 管理台的总体成本页查看。
+          </p>
+        </div>
+      ) : (
+        <>
+          <div class="totals">
+            <div><span class="hint">调用</span><strong>{num(costs.totals.calls)}</strong></div>
+            <div><span class="hint">输入 tokens</span><strong>{num(costs.totals.input_tokens)}</strong></div>
+            <div><span class="hint">输出 tokens</span><strong>{num(costs.totals.output_tokens)}</strong></div>
+            <div><span class="hint">成本</span><strong>{usd(costs.totals.cost_micros)}</strong></div>
+          </div>
+
+          <table class="table">
+            <thead>
+              <tr>
+                <th scope="col">{tabs.find(tab => tab.value === dimension)?.label ?? '维度'} ID</th>
+                <th scope="col">调用</th>
+                <th scope="col">输入 tokens</th>
+                <th scope="col">输出 tokens</th>
+                <th scope="col">成本</th>
+              </tr>
+            </thead>
+            <tbody>
+              {costs.rows.map(row => (
+                <tr>
+                  <td><code>{row.key}</code></td>
+                  <td class="num">{num(row.calls)}</td>
+                  <td class="num">{num(row.input_tokens)}</td>
+                  <td class="num">{num(row.output_tokens)}</td>
+                  <td class="num">{usd(row.cost_micros)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </>
+      )}
+    </>
+  )}
+</ConsoleLayout>
+
+<style>
+  .toolbar { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+  .head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+  .head h1 { font-size: 18px; margin: 0; }
+  .tabs { display: flex; gap: 6px; }
+  .tab { color: var(--ink-dim); font-size: 13px; text-decoration: none; padding: 4px 10px; border: var(--hair); border-radius: 6px; }
+  .tab:hover { color: var(--ink); }
+  .tab--active { color: var(--data); border-color: var(--data); }
+  .window { margin: 0 0 10px; }
+  .panel { padding: 16px; border: var(--hair); border-radius: 8px; background: var(--steel-850); }
+  .panel--error { border-color: var(--alert); }
+  .hint { color: var(--ink-dim); font-size: 12px; margin: 0; }
+  .totals { display: grid; grid-template-columns: repeat(4, minmax(120px, 1fr)); gap: 10px; margin-bottom: 12px; }
+  .totals > div { border: var(--hair); border-radius: 6px; padding: 10px; background: var(--steel-850); display: flex; flex-direction: column; gap: 4px; }
+  .totals strong { font-size: 16px; }
+  .table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .table th, .table td { border-bottom: var(--hair); padding: 8px 10px; text-align: left; }
+  .table th { color: var(--ink-dim); font-weight: 500; }
+  .num { text-align: right; font-variant-numeric: tabular-nums; }
+</style>
