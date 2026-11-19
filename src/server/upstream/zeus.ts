@@ -1,11 +1,14 @@
 import { callJson } from './http.js';
 import type {
   ApprovalVerdict,
+  CreateOrgGoalInput,
   DecisionApprovalResponse,
   DecisionPolicy,
   DecisionRecord,
   DecisionStatus,
   OrgDepartment,
+  OrgGoal,
+  OrgGoalTemplate,
   OrgOrganization,
   OrgPosition,
   OrgTask,
@@ -153,6 +156,35 @@ export class ZeusUpstream {
       { query: organizationId ? { organizationId } : {} },
     );
     return body.tasks;
+  }
+
+  /** F5.1: registered goals for one organization (read-only projection). */
+  async listOrgGoals(organizationId?: string): Promise<OrgGoal[]> {
+    const body = await callJson<{ goals: OrgGoal[] }>(
+      this.baseUrl,
+      this.token,
+      '/api/v1/org/goals',
+      { query: organizationId ? { organizationId } : {} },
+    );
+    return body.goals;
+  }
+
+  /** F5.3: code-owned built-in template catalog. */
+  async listGoalTemplates(): Promise<OrgGoalTemplate[]> {
+    const body = await callJson<{ templates: OrgGoalTemplate[] }>(
+      this.baseUrl,
+      this.token,
+      '/api/v1/org/goal-templates',
+    );
+    return body.templates;
+  }
+
+  /** F5.1: register a goal; zeus validates schedule/template semantics. */
+  async createOrgGoal(input: CreateOrgGoalInput): Promise<OrgGoal> {
+    return callJson<OrgGoal>(this.baseUrl, this.token, '/api/v1/org/goals', {
+      method: 'POST',
+      body: input,
+    });
   }
 
   /**

@@ -276,3 +276,76 @@ export interface OrgSnapshot {
   positions: OrgPosition[];
   tasks: OrgTask[];
 }
+
+// --- Tier0 org M5 F5.1/F5.2/F5.3: goals, schedules and built-in templates ---
+
+export type OrgGoalPeriod = 'daily' | 'weekly' | 'once';
+export type OrgGoalStatus = 'active' | 'paused' | 'done' | 'archived';
+
+/** UTC wall-clock window; `weekdayUtc` is required only for weekly goals. */
+export interface OrgGoalSchedule {
+  hourUtc: number;
+  minuteUtc: number;
+  /** 0=Sunday .. 6=Saturday. */
+  weekdayUtc?: number;
+}
+
+export interface OrgGoalTaskTemplate {
+  title?: string;
+  payload?: unknown;
+  requiredSkill?: string;
+  positionId?: string;
+}
+
+export interface OrgGoalTemplateStep {
+  id: string;
+  title?: string;
+  payload?: unknown;
+  requiredSkill?: string;
+  positionId?: string;
+  dependsOn?: string[];
+}
+
+/** Code-owned, versionless built-in template a goal can reference by id. */
+export interface OrgGoalTemplate {
+  id: string;
+  title: string;
+  description?: string;
+  steps: OrgGoalTemplateStep[];
+}
+
+export interface OrgGoal {
+  format: 'zeus-org-goal';
+  version: 1;
+  id: string;
+  organizationId: string;
+  title: string;
+  period: OrgGoalPeriod;
+  status: OrgGoalStatus;
+  projectId?: string;
+  /** Absent means registered but not scheduled (manual goals). */
+  schedule?: OrgGoalSchedule;
+  taskTemplate?: OrgGoalTaskTemplate;
+  /** Mutually exclusive with taskTemplate. */
+  templateRef?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateOrgGoalInput {
+  organizationId: string;
+  title: string;
+  period?: OrgGoalPeriod;
+  projectId?: string;
+  status?: OrgGoalStatus;
+  schedule?: OrgGoalSchedule;
+  taskTemplate?: OrgGoalTaskTemplate;
+  templateRef?: string;
+}
+
+/** Read model used by the goals page: goals plus the code-owned catalog. */
+export interface OrgGoalSnapshot {
+  goals: OrgGoal[];
+  templates: OrgGoalTemplate[];
+  organizations: OrgOrganization[];
+}
