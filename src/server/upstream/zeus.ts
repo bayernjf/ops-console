@@ -1,6 +1,7 @@
 import { callJson } from './http.js';
 import type {
   ApprovalVerdict,
+  ConsoleGoalStatus,
   CreateOrgGoalInput,
   DecisionApprovalResponse,
   DecisionPolicy,
@@ -187,6 +188,20 @@ export class ZeusUpstream {
       method: 'POST',
       body: input,
     });
+  }
+
+  /**
+   * F5.1 status transition: pause/resume/archive a goal. Only the status
+   * field is sent — title, period, schedule and templates stay untouched.
+   * zeus re-validates the retained schedule against the goal's period.
+   */
+  async updateOrgGoalStatus(id: string, status: ConsoleGoalStatus): Promise<OrgGoal> {
+    return callJson<OrgGoal>(
+      this.baseUrl,
+      this.token,
+      `/api/v1/org/goals/${encodeURIComponent(id)}`,
+      { method: 'PATCH', body: { status } },
+    );
   }
 
   /** F4.2: rule-derived experience candidates (read-only projection). */
