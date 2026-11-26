@@ -17,6 +17,22 @@
 
 - [x] **退款页/内容页切 commerce 新端点** — 已完成（2026-11-22 复核）。代码已在 `a75e6d0` 落地：commerce client 的 `listRefunds/listContent/getContent`、退款页 SSR 真实列表、内容页 `GET /api/v1/content` published 投影均已接线；`tests/commerce-lists.test.ts` 4 例通过，全量 Vitest 271/271 绿。
 
+## 2026-11-27 `/metrics` 端点（Tier0 collector，OB-01）
+
+- ✅ 新增 `src/server/metrics.ts`（纯聚合/渲染）+ `src/pages/metrics.ts`
+  （Astro endpoint，`GET /metrics`）；`middleware.ts` 把 `/metrics` 加入
+  `PUBLIC_PATHS`（collector 无鉴权抓取）。
+- ✅ 指标族：`ops_console_up` / `ops_console_uptime_seconds` /
+  `ops_console_metrics_snapshot_timestamp_seconds` /
+  `ops_console_notify_deliveries{event,status}` /
+  `ops_console_notify_deliveries_total`。只导出通知投递账本的计数，
+  不导出 decision id / deep link / webhook URL / error text。
+- ✅ compose：`ops-console` service 加入 `tier0-net`（external），collector
+  用 `ops-console:3022` 抓取。
+- ✅ 测试 `tests/metrics.test.ts` 2 例；全量 38 文件 / 273 tests 全绿、lint 0、
+  `astro check` 0（fnm v22.23.4，本机默认 v22.23.2 低于 Astro 下限）、build 通过、
+  `docker compose config` OK。
+- ⬜ 端到端现测待容器在 tier0-net 运行后补（`ops_console_up=1` + 面板取到样本）。
 
 ## 2026-11-19 Tier0 组织层 F2.1 控制台侧：owner-only 组织建模
 
