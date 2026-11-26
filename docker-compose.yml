@@ -34,3 +34,13 @@ services:
       - "3022:3022"
     volumes:
       - ./data:/app/data
+    networks: [default, tier0-net]
+
+# tier0-net is the observability collector's external network. The console
+# joins it so Prometheus can scrape /metrics; upstream host.docker.internal
+# routing is unaffected.
+networks:
+  default:
+  tier0-net:
+    external: true
+    name: tier0-net
