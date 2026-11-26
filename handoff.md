@@ -5,10 +5,18 @@
 > 本段是本产品唯一活跃待办入口；详细背景见下方原有章节。完成一项改 `[x]`，并在“最近变更 / Recently shipped”留证据。
 > 最近同步：2026-11-22
 
-- [ ] **GATE-M8 连续 7 天现网运营** — 状态：open；下一步：连续 7 天全部在控制台完成、无人直接调 API。
-- [ ] **真实 webhook（飞书/微信/邮件）** — 状态：blocked；下一步：owner 提供 `OPS_NOTIFY_WEBHOOK_URL` 等外部地址。
-- [ ] **生产认证 Cloudflare Access / GitHub OIDC** — 状态：blocked；当前仍是预留 seam，现网部署/域名/TLS 冻结。
+<!-- tier0:todos v1 -->
+| id | title | status | priority | owner | next | evidence | updated |
+|---|---|---|---|---|---|---|---|
+| OC-01 | GATE-M8 连续 7 天现网运营 | open | p1 | self | 连续 7 天全部在控制台完成、无人直接调 API | - | 2026-11-22 |
+| OC-02 | 真实 webhook（飞书/微信/邮件） | blocked | p1 | owner | owner 提供 `OPS_NOTIFY_WEBHOOK_URL` 等外部地址 | - | 2026-11-22 |
+| OC-03 | 生产认证 Cloudflare Access / GitHub OIDC | blocked | p2 | external | 现网部署解冻后接入；当前保留 seam | - | 2026-11-22 |
+<!-- /tier0:todos -->
+
+### 已完成（历史）
+
 - [x] **退款页/内容页切 commerce 新端点** — 已完成（2026-11-22 复核）。代码已在 `a75e6d0` 落地：commerce client 的 `listRefunds/listContent/getContent`、退款页 SSR 真实列表、内容页 `GET /api/v1/content` published 投影均已接线；`tests/commerce-lists.test.ts` 4 例通过，全量 Vitest 271/271 绿。
+
 
 ## 2026-11-19 Tier0 组织层 F2.1 控制台侧：owner-only 组织建模
 
