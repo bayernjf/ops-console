@@ -32,7 +32,7 @@
 - ✅ 测试 `tests/metrics.test.ts` 2 例；全量 38 文件 / 273 tests 全绿、lint 0、
   `astro check` 0（fnm v22.23.4，本机默认 v22.23.2 低于 Astro 下限）、build 通过、
   `docker compose config` OK。
-- ⬜ 端到端现测待容器在 tier0-net 运行后补（`ops_console_up=1` + 面板取到样本）。
+- ✅ 端到端现测：`ops_console_up{exported_job="ops-console"}=1`，Prometheus 取到样本。
 
 ## 2026-11-19 Tier0 组织层 F2.1 控制台侧：owner-only 组织建模
 
